@@ -1,0 +1,110 @@
+
+ -- Test descriptions for GwLogger --
+
+ The Node.js "assert" package is used, and no dependencies are necessary to test. 
+ Zero dependencies was a goal of gwlogger, but has led to platform-specific testing. 
+ Development is in Windows right now, so there are simple runner.bat files that runs 
+ the tests with help from envSet.bat and envUnset.bat.
+ 
+ All testing is from the command line and should be done after changing to the test directory.
+ 
+ Testing on Ubuntu was by editing the .bashrc file to set/unset the environment variables.
+ It is also possible to do same from NPM or terminal command, but those too are OS-specific.
+
+ Any test can be executed independently, except for UnitTestsGwLogger_03 which requires
+ prep work to set up environment variables (see support files envSet.bat and envUnset.bat).
+ 
+ The Unit Tests can be executed with UTRunner.bat, while from the gwlogger/test directory.
+ 
+ 1. UnitTestsGwLogger_01.js, covers these test cases (mostly sets, then checks that getters will match):
+		test_getVersion();
+		test_setIsEpoch();
+		test_setIsShowMs();
+		test_setIsLocalTimezone();
+		test_setYearDigits();
+		test_setIsConsoleTs();	
+		test_setSepChar();
+		test_setLogLevel();
+		test_setIsConsole();
+		test_setIsFile();
+		test_getFn();
+	gwlogger\test>node UnitTestsGwLogger_01.js	
+		
+ 
+ 2. UnitTestsGwLogger_02.js, covers these test cases:
+		test_getVersion();
+		test_createActiveProfile();
+		test_Str2NumLogLevel();
+		test_getTimeStamp();
+		test_profileFileNameErrors(); // should trap on bad path
+		test_customFileNameErrors();  // should trap on bad path
+	gwlogger\test>node UnitTestsGwLogger_02.js	
+		
+ 3. UnitTestsGwLogger_03.js,  test for environment variables use in profiles.
+		Requires some preparation: run 'envSet.bat' before the test file, and 'envUnset.bat' afterwards.
+		test_getEnvProfile(); // compares profile built with env variables with canned test model.
+		
+ 4.	UtEsm01.mjs  -- A unit test for test of ES6 import syntax, 
+	Ensures that the export statements of GwLogger are compatible with import. Success is a good version test.		
+
+ >> Functional tests log to console and/or file, and must be verified correct manually.
+ 
+ Functional tests can be executed independently, or with FTRunner.bat. All functional tests require
+ manual inspection of output, both on the console and in the logfiles. Each test provides some additional
+ detail.
+	
+ 5. FuncTestCon_01.js, covers console-only on/off logging manipulation:		
+		1) Logs all levels to console
+		2) Logs No levels to console with LL=OFF
+		3) Logs NO levels to console with LL=ALL, isConsole=false
+		4) Logs all levels to console with isConsole=true (LL=ALL)
+		5) Ensure that no logging from FuncTestCon_01 creates or adds to any logfile.
+	gwlogger\test>node FuncTestCon_01.js	
+
+ 6. FuncTest_02.js, logs identically to console and file (including timestamps). Tests are:
+		1. Only fatal message will log.
+		2. Fatal and error messages log.
+		3. Add warn message.
+		4. Add notice message
+		5-9. Add info, dev, debug, trace, and all 
+	gwlogger\test>node FuncTest_02.js	
+	
+ 7. FuncTest_03.js, covers timestamp customizations, setModuleName, and separation characters.
+	Logged lines in output are numbered for reference in problems.
+		1. Message only needs to appear
+		2. Version number of GwLogger, needs only to appear.
+		3. Added ModuleName (a user-set string).
+		4. On console, separation character is shown as a '&'.
+		5. Removed separation character.
+		6. Removed Module name.
+		7. Added timestamp to console logging.
+		8. Switched TS format to milliseconds/Unix Epoch.
+		9. Separation character now a '#'.
+		10. Separation character back to a space.
+		11. Timestamp is local without any year digits.
+		12. TS has a 4-digit year.
+		13. TS has a 2-digit year.
+		14. TS is UTC (ends in 'z'), but no year.
+		15. Local time, no year, no milliseconds.
+		16. In logfile, separation character is now '#', and the module name is back.
+		17. returned to a space for separation character in logfile, and removed module name.
+		18. Simply must log at TRACE loglevel.
+	gwlogger\test>node FuncTest_03.js	
+		
+ 8.	FuncTest_04.js, helps test formatted output, 
+	such as log.info("the meaning of life is: ", {meaningOfLife: {love: true, health: 8, money: 5} } );		
+	gwlogger\test>node FuncTest_04.js	
+	
+	
+ 9. TestPerfBlitz -- Not a unit or functional test, not really a performance test either. It spews out a lot of
+	logging statements. This is an observation of the writestream backpressure. It may be more fully developed. 
+	Very quick and dirty tight logging loop over several loggers.
+	
+	
+	
+	
+	
+	
+ 
+ 
+ 

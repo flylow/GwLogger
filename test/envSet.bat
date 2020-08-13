@@ -1,0 +1,9 @@
+@ECHO OFF
+SET GWL_logLevelStr=fatal
+SET GWL_fn=./logfiles/EnvTest.log
+SET GWL_isFile=false
+SET GWL_isConsole=true
+SET GWL_nYr=1
+SET GWL_isShowMs=false
+SET GWL_isLocalTz=false
+SET GWL_isConsoleTs=true

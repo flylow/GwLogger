@@ -1,0 +1,31 @@
+{
+  "name": "GwLogger",
+  "version": "1.0.0",
+  "description": "A quick to use logger that attempts to have most useful features, especially for small to medium-sized projects.",
+  "main": "GwLogger.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "files": [
+	"README.MD",
+	"CHANGELOG.MD",
+	"GwLogger.js",
+	"Profiles.js",
+	"WritePool.js",
+	".eslintrc.json"
+  ],
+  "author": "G. Wilson",
+  "license": "MIT",
+  "bugs": {
+    "url": ""
+  },
+	"keywords": ["logger", "logging", "log", "logs", "development", "tools", "debug" ],
+  "homepage": "",
+  "engines": {"node": ">=0.10.0"},
+  "devDependencies": {
+  }, 
+  "dependencies": {
+  }
+}

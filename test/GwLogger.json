@@ -1,0 +1,11 @@
+{
+	"fn": "./logfiles/logJsonFile.log",
+	"logLevelStr": "OFF",
+	"isFile": true,
+	"isConsole": false,
+	"isConsoleTs": false,
+	"isEpoch": false,
+	"nYr": 0,
+	"isLocalTz": true,
+	"isShowMs": true
+}	
