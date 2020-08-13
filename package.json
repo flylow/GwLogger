@@ -1,5 +1,5 @@
 {
-  "name": "GwLogger",
+  "name": "gwlogger",
   "version": "1.0.0",
   "description": "A quick to use logger that attempts to have most useful features, especially for small to medium-sized projects.",
   "main": "GwLogger.js",
@@ -13,17 +13,16 @@
 	"CHANGELOG.MD",
 	"GwLogger.js",
 	"Profiles.js",
-	"WritePool.js",
-	".eslintrc.json"
+	"WritePool.js"
   ],
   "author": "G. Wilson",
   "license": "MIT",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/flylow/GwLogger/issues"
   },
 	"keywords": ["logger", "logging", "log", "logs", "development", "tools", "debug" ],
-  "homepage": "",
-  "engines": {"node": ">=0.10.0"},
+  "homepage": "https://github.com/flylow/GwLogger",
+  "engines": {"node": ">=0.8.0"},
   "devDependencies": {
   }, 
   "dependencies": {
