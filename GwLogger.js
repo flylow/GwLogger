@@ -19,7 +19,7 @@ const writePool = require("./WritePool.js"); //import { writePool } from "./Writ
 const profiles = require("./Profiles");  //import { profiles } from "./Profiles.js";
 const inspect = require("util").inspect; //import { inspect } from "util";
 
-const version = "1.00";
+const version = "1.01";
 
 
 class GwLogger {

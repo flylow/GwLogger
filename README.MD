@@ -3,20 +3,26 @@ GwLogger aspires to be a straight-forward, no-hassle logger for NodeJS which log
 
 GwLogger requires Node.js, version 8.0 or greater. It does not support browser development.
 
-Install in your project via NPM:
-npm i gwlogger
+## Installation ##
+Install locally from your project\'s main directory into the node_modules directory via NPM:
+`npm i @flylow/gwlogger`
+or globally:
+`npm i -g @flylow/gwlogger`
+
+The global installation may require some changes in your configuration and how you access GwLogger. NodeJS documentation now states: "It is strongly encouraged to place dependencies in the local node_modules folder;" see: https://nodejs.org/api/modules.html#modules_loading_from_the_global_folders.
+
+The examples below always assume GwLogger was installed locally to your application.
 
 ## Usage ##
 To use, import/require GwLogger in source files and create your logger with: 
 
-
 ```javascript
-const GwLogger = require("./node_modules/gwlogger").GwLogger; 
+const GwLogger = require("./node_modules/@flylow/gwlogger").GwLogger; 
 const log = new GwLogger("WARN"); /* creates a logger at WARN level, logs to file, not to console, and creates ./gwl_log.log logfile in your current application's working directory. */
 ```
 Or, if your application is using ES Modules:
 ```javascript
-import gwl from "./node_modules/gwlogger/GwLogger.js"; 
+import gwl from "./node_modules/@flylow/gwlogger/GwLogger.js"; 
 const GwLogger = gwl.GwLogger;
 const log = new GwLogger("WARN"); // loglevel is "warn"
 ```

@@ -26,7 +26,7 @@ try {
 } catch(err) { // noop
 }
 
-const versionRef = "1.00"; // version number of targeted GwLogger.
+const versionRef = "1.01"; // version number of targeted GwLogger.
 	
 const tlog = new GwLogger("info", true, true, "./logfiles/logUT_02.log");
 tlog.setModuleName("UT_02");
