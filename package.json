@@ -1,5 +1,5 @@
 {
-  "name": "gw-logger",
+  "name": "@flylow/gwlogger",
   "version": "1.0.0",
   "description": "A quick to use logger that attempts to have most useful features, especially for small to medium-sized projects.",
   "main": "GwLogger.js",
