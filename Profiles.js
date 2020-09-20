@@ -1,29 +1,43 @@
 "use strict";
-/*
-import { readFileSync, existsSync } from "fs";
-import { writePool } from "./WritePool.js";
+
+/* Profiles.js creates and stores the profile data for a GwLogger.
+ * It can gather data from environment variables or JSON files.
+ * It contains built-in defaults, overlaying those settings with
+ * the other gathered data, and stores the resulting activeProfile.
+ *
+ * Starting in GwLogger version 1.1.0, each instance of GwLogger has 
+ * its own associated instance of Profiles.
+ *
 */
+
+/*global console, process, require, exports */ // A directive for exceptions to ESLint no-init rule
+
 const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
+const path = require("path");
 const writePool = require("./WritePool.js");
 
-/*global console, process, require */ // A directive for exceptions to ESLint no-init rule
 class Profiles {
 
-	constructor() {
-
+	constructor(profilePath) {
 		this.activeProfile = null;
 		this.logLevelDefault = "OFF";
 		this.tsFormatDefaults = {isEpoch: false, isLocalTz: true, nYr: 0, isShowMs: true};
 		this.isConsoleTsDefault = false; // console timestamps
 		this.isConsoleDefault = false;
 		this.isFileDefault = true;
+		this.isRollAtStartup = false;
+		this.wasRolledAtStartup = false; // only roll the log once at startup, if requested
+		this.isRollBySize = false;
+		this.maxLogSizeKb = 0; 
+		this.maxNumRollingLogs = 0;
+		this.rollingLogPath = null;
 		this.path_separator = (process.platform.startsWith("win")) ? "\\" : "/"; // okay here, but not always trustworthy, see checkPath(fn);
-		this.path = process.cwd() + this.path_separator;// this.mainExec.substring(0,this.endPath);
-		this.fnDefault = this.path + "gwl_log.log";
-		this.profileName = this.path + "GwLogger.json";
-		this.customStreams = {}; // to hold: {"./MYDIR/MYLOGFILE": <ws>}
-	
+		this.path = process.cwd();
+		this.fnDefault = this.path + this.path_separator + "gwl_log.log";
+		this.fnPath = this.path;
+		this.profileName = (profilePath) ? profilePath : this.path + this.path_separator +  "GwLogger.json";
+		this.customStreams = {};
 		// Some init code to read profile/set active profile
 		this.init = function() {
 			let activeProfile = this.getActiveProfile();
@@ -34,7 +48,7 @@ class Profiles {
 				} else try {
 					let fileJson = this.getJsonProfile();  // Nothing in environment variables, try loading a profile file.
 					this.createActiveProfile(fileJson);
-				} catch(err) { // no profile, so use built-in defaults to get started, TODO, using catch for normal path!!?
+				} catch(err) { // no profile, so use built-in defaults to get started. TODO, using catch for a normal path!!?
 					let defJson = this.getDefaultProfile();
 					this.createActiveProfile(defJson);
 				}
@@ -44,15 +58,18 @@ class Profiles {
 		
 	} // End of constructor
 	
+	// For verifying a file spec that is entered by user. Returns a path, only if path was valid and exists already, else null
 	checkPath(pathWithFn) {
 		let p, endPath;
+		// Trial and Error, since can sometimes expect '/' or '\' from user on Windows
 		endPath = pathWithFn.lastIndexOf("\\");
-		if (endPath === -1) endPath = pathWithFn.lastIndexOf("/"); // Trial and Error
+		if (endPath === -1) endPath = pathWithFn.lastIndexOf("/");
 		p = pathWithFn.substring(0,endPath + 1);
-		return existsSync(p);
+		p = ( p && existsSync(p)) ? p : null;
+		return (p) ? path.resolve(p) : null;
 	}
 	
-	getStackTrace(err) { // Trims stacktrace to point at perpetrator
+	getStackTrace(err) { // Trims stacktrace to better point at perpetrator
 		let stack = err.stack;
 		stack = stack.split("\n").map(function (statement) { return statement.trim(); });
 		return stack.splice(stack[0] == "Error" ? 2 : 1);		
@@ -90,7 +107,7 @@ class Profiles {
 	getDefaultProfile() {
 		let defJson = {logLevelStr: this.logLevelDefault, isFile: this.isFileDefault, isConsole: this.isConsoleDefault, fn: this.fnDefault, 
 			isEpoch: this.tsFormatDefaults.isEpoch,  isLocalTz: this.tsFormatDefaults.isLocalTz, nYr: this.tsFormatDefaults.nYr, 
-			isShowMs: this.tsFormatDefaults.isShowMs, isConsoleTs: this.isConsoleTsDefault};
+			isShowMs: this.tsFormatDefaults.isShowMs, isConsoleTs: this.isConsoleTsDefault, isRollBySize: this.isRollBySize, maxLogSizeKb: this.maxLogSizeKb, maxNumRollingLogs: this.maxNumRollingLogs, rollingLogPath: this.rollingLogPath};
 		return defJson;
 	}
 	
@@ -105,9 +122,7 @@ class Profiles {
 	}
 		
 	getEnvProfile() {
-		let envJson = {logLevelStr: this.logLevelDefault, isFile: this.isFileDefault, isConsole: this.isConsoleDefault, fn: this.fnDefault, 
-			isEpoch: this.tsFormatDefaults.isEpoch,  isLocalTz: this.tsFormatDefaults.isLocalTz, nYr: this.tsFormatDefaults.nYr, 
-			isShowMs: this.tsFormatDefaults.isShowMs, isConsoleTs: this.isConsoleTsDefault};
+		let envJson = this.getDefaultProfile();
 		let isEnvProfile = false;
 		let ekey, evalue;
 		for (let key in envJson) {
@@ -146,21 +161,29 @@ class Profiles {
 	}
 	
 	newProfileWriteStream(fn) {
-		try { 
-			return this.newCustomWriteStream(fn);
+		let profile = this.getActiveProfile();
+		try {
+			if (!fn || !(this.fnPath = this.checkPath(fn))) {
+				let stack = this.getStackTrace(new Error());			
+				console.error("\x1b[31m%s\x1b[0m", "ERROR: Could not find path for logfile: ", fn, "\n",stack);
+				throw("Could not find path for logfile.");		
+			}
+			// get or create a stream for this fn
+			return writePool.getStream(fn, false, profile.isRollBySize, profile.maxLogSizeKb
+												, profile.maxNumRollingLogs, profile.rollingLogPath);
 		} catch(err) {
-			throw("Unlikely logfile path or other issue while creating a new profile logging file stream in GwLogger.\n" + err);
+			throw("Unlikely logfile path or other issue while creating a new profile file stream in GwLogger.\n" + err);			
 		}		
 	}
 	
 	newCustomWriteStream(fn) {
 		try {
-			if (!fn || !this.checkPath(fn)) {
+			if (!fn || !(this.fnPath = this.checkPath(fn))) {
 				let stack = this.getStackTrace(new Error());			
 				console.error("\x1b[31m%s\x1b[0m", "ERROR: Could not find path for logfile: ", fn, "\n",stack);
 				throw("Could not find path for logfile.");		
 			}
-			return writePool.registeredStream(fn); // gets or creates a stream for this fn
+			return writePool.getStream(fn); // gets or creates a stream for this fn
 		} catch(err) {
 			throw("Unlikely logfile path or other issue while creating a new logging file stream in GwLogger.\n" + err);			
 		}		
@@ -182,16 +205,17 @@ class Profiles {
 		// are you sure? This should only be done during testing.
 		this.activeProfile = p;
 	}
-	
-	storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs) {
-		// Will overwrite previous defaults, if any
+		
+	storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath) {
+		// Will overwrite existing profile data, if any
 		this.activeProfile = {fn: fn, logLevelStr: logLevelStr, 
 			isFile: isFile, isConsole: isConsole, isEpoch: isEpoch, isLocalTz: isLocalTz, nYr: nYr,
-			isShowMs: isShowMs, isConsoleTs: isConsoleTs};
+			isShowMs: isShowMs, isConsoleTs: isConsoleTs, isRollBySize: isRollBySize, maxLogSizeKb: maxLogSizeKb, 
+			maxNumRollingLogs: maxNumRollingLogs, rollingLogPath: rollingLogPath};
 		return;
 	}	
 	
-	createActiveProfile(profileCandidate) { //profileCandidate (default JSON) is an object created from the JSON profile or from built-in defaults.
+	createActiveProfile(profileCandidate) { //profileCandidate is an object created from env vars, the JSON profile or from built-in defaults.
 		if (this.activeProfile) { // see if defaults have already been defined (no do-overs)
 			let stack = this.getStackTrace(new Error());	// only a warning, but still might find stacktrace useful
 			console.warn("\x1b[32m%s\x1b[0m", "WARNING: Defaults cannot be redefined, already defined in GwLogger.\n", stack);
@@ -258,19 +282,45 @@ class Profiles {
 			let err = new Error();
 			console.error("\x1b[31m%s\x1b[0m", "ERROR: Profile isConsoleTs must be true or false\n",err.stack);
 			process.exit(1); // All stop
-		}		
+		}
+
+		let isRollBySize = profileCandidate.isRollBySize;
+		if (typeof isRollBySize !== "boolean") {
+			let err = new Error();
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Profile isRollBySize must be true or false\n",err.stack);
+			process.exit(1); // All stop
+		}
+		let maxLogSizeKb = profileCandidate.maxLogSizeKb;
+		if (maxLogSizeKb < 0) {
+			let err = new Error();
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Profile maxLogSizeKb must be a zero or greater Number (no quotes)\n",err.stack);
+			process.exit(1); // All stop
+		}
+		let maxNumRollingLogs = profileCandidate.maxNumRollingLogs;
+		if (maxNumRollingLogs > 20 || maxNumRollingLogs < 0) {
+			let err = new Error();
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Profile maxNumRollingLogs must be of type Number from 0-20 (no quotes)\n",err.stack);
+			process.exit(1); // All stop
+		}
+		let rollingLogPath;
+		rollingLogPath = (profileCandidate.rollingLogPath) ? path.resolve(profileCandidate.rollingLogPath) : null;
+		if ((isRollBySize || rollingLogPath) && (!this.isValidStr(rollingLogPath) || !existsSync(rollingLogPath)) ) { // || this.fnPath === rollingLogPath)) {
+			let stack = this.getStackTrace(new Error());			
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Rolling logs requires an existing log file directory, different from the active logfile's directory.\n",stack);
+			process.exit(1); // All stop			
+		}
+		if (maxLogSizeKb === 0 || maxNumRollingLogs === 0) {
+			isRollBySize = false;
+		} 		
+		
 		if (!this.activeProfile) {
-			this.storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs);
+			this.storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath );
 			return;
 		}	
 	}
 
 } // end of Profiles class
 
-const profiles = new Profiles();
-/*
-export { profiles };
-*/
+exports.ProfileClass = Profiles;
 
-module.exports = profiles;
 

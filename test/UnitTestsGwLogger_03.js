@@ -1,30 +1,19 @@
 "use strict";
+/*global require */ // A directive for exceptions to ESLint no-init rule
 
-/*
-// ------------   If using import (file must be renamed .mjs) -----------------
-import sa from "assert";
-import gwl from "../GwLogger.js";
-import profiles from "../Profiles.js";
-
-const assert = sa.strict;
-const GwLogger = gwl.GwLogger;
-// -- end of import section
-*/
-
-// ------------   If using require (file must be renamed .mjs) -----------------
 const GwLogger = require("../GwLogger").GwLogger;
-const profiles = require("../Profiles.js");
+const path = require("path");
 let assert;
-assert = require('assert').strict;
-if (!assert) assert = require('assert'); // for node < 10.0 without strict mode
+assert = require("assert").strict;
+if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
+const versionRef = "1.1.0"; // version number of targeted GwLogger.
 
-const versionRef = "1.01"; // version number of targeted GwLogger.
-
-const tlog = new GwLogger("info", true, true, "./logfiles/logJsonFile.log");
-tlog.info("===> UnitTestsGwLogger_03.js is running");
+const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_03");
+tlog.notice("===> UnitTestsGwLogger_03.js is running, logfile is: ./logfiles/Unit Test Results.log");
+	
 
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
@@ -49,22 +38,25 @@ const test_getVersion = function() {
 		tlog.error("Fail TESTING: test_getVersion: ");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 // Here is a set of profile data to use as expectation for Environment Variables. Settings must 
 // be mostly different from built-in defaults and from GwLogger.json profile file.
 let jsonEnvTest = {
-  "fn": "./logfiles/EnvTest.log",
-  "logLevelStr": "FATAL",
-  "isFile": false,
-  "isConsole": true,
-  "isLocalTz": false,  
-  "nYr": 1,
-  "isEpoch": false,  
-  "isShowMs": false,
-  "isConsoleTs": true  
+	"fn": "./logfiles/EnvTest.log",
+	"logLevelStr": "FATAL",
+	"isFile": false,
+	"isConsole": true,
+	"isEpoch": false,
+	"isLocalTz": false,	
+	"nYr": 1,
+	"isShowMs": false,
+	"isConsoleTs": true,	
+	"isRollBySize": false,
+	"maxLogSizeKb": 0, 
+	"maxNumRollingLogs": 0, 
+	"rollingLogPath": path.resolve("./rolledfiles/rolledfiles2")
 };
-	
 
 // --- This test requires preparation of setting environment variables that match jsonEnvTest above. Hence, it is
 // separate from other tests to allow prep before and clean-up after (by .bat or .bash).
@@ -72,15 +64,19 @@ let jsonEnvTest = {
 const test_getEnvProfile = function() {
 	nTests++;
 	try {
-		let jsonEnvProfile = profiles.getEnvProfile(); 
-		tlog.debug("In UT_03, jsonEnvProfile is: " + JSON.stringify(jsonEnvProfile, null, 2));
+let profiles;
+		const logTest_Profile = new GwLogger(); // get a clean logger that creates new profile using env vars
+		profiles = logTest_Profile.getProfilesInstance(); // get this instance of profiles		
+		//let jsonEnvProfile = profiles.getEnvProfile(); 
+		tlog.setLogLevel("notice");
+		//tlog.debug("In UT_03, jsonEnvProfile is: " + JSON.stringify(jsonEnvProfile, null, 2));
 		let jsonEnvTestStr = JSON.stringify(jsonEnvTest, replacer, 2); // hides huge gwWriteStream from compare, which varies every time.
 		let jsonReturn = profiles.getActiveProfile(); // try to get a copy of current settings
 		let jsonReturnStr = JSON.stringify(jsonReturn, replacer, 2); // hide gwWriteStream prior to comparison
 		jsonReturn = JSON.parse(jsonReturnStr);
 		jsonEnvTest = JSON.parse(jsonEnvTestStr); // round-trips for all.
 		tlog.debug("---- jsonEnvTestStr, jsonReturnStr ------------");
-		tlog.debug(JSON.stringify(jsonEnvTest, null, 2) + "\n" + JSON.stringify(jsonReturn, null, 2));
+		tlog.debug("In UT_03 comparing: ", JSON.stringify(jsonEnvTest, null, 2) + "\n" + JSON.stringify(jsonReturn, null, 2));
 		tlog.debug("---- END END jsonEnvTestStr, jsonReturnStr ------------");
 		assert.deepStrictEqual(jsonEnvTest, jsonReturn); // Compare what is stored with what we expected
 		tlog.info("test_createActiveProfile Passed!");
@@ -89,9 +85,9 @@ const test_getEnvProfile = function() {
 		tlog.error("Fail TESTING: test_getEnvProfile");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 	
-
+test_getVersion();
 test_getEnvProfile();
 tlog.notice("\nTotal UnitTestsGwLogger_03 Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
 

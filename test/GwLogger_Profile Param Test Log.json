@@ -1,6 +1,6 @@
 {
-	"fn": "./logfiles/logJsonFile.log",
-	"logLevelStr": "OFF",
+	"fn": "./logfiles/Profile Param Test Log.log",
+	"logLevelStr": "debug",
 	"isFile": true,
 	"isConsole": false,
 	"isConsoleTs": false,

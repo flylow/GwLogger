@@ -1,7 +1,7 @@
 {
   "name": "@flylow/gwlogger",
-  "version": "1.0.1",
-  "description": "A quick to use logger that attempts to have most useful features, especially for small to medium-sized projects.",
+  "version": "1.1.0",
+  "description": "A quick to use logger that attempts to have most useful features.",
   "main": "GwLogger.js",
   "scripts": {},
   "repository": {
@@ -11,6 +11,8 @@
   "files": [
 	"README.MD",
 	"CHANGELOG.MD",
+	"LICENSE",
+	"fsprom.js",
 	"GwLogger.js",
 	"Profiles.js",
 	"WritePool.js"

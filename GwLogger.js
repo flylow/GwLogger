@@ -1,6 +1,6 @@
 "use strict";
 /** 
- * GwLogger : A small and simple-to-use Node.js logger that streams to file and/or console. 
+ * GwLogger : A simple-to-use Node.js logger that streams to file and/or console. 
  * There are no dev dependencies for GwLogger, but if you use Eslint please use the included
  * eslintrc.json profile.
  *
@@ -10,36 +10,42 @@
  */
  
 /*global console, process, require, exports */ // A directive for exceptions to ESLint no-init rule
-/*
-import { writePool } from "./WritePool.js";
-import { profiles } from "./Profiles.js";
-import { inspect } from "util";
-*/ 
-const writePool = require("./WritePool.js"); //import { writePool } from "./WritePool.js";
-const profiles = require("./Profiles");  //import { profiles } from "./Profiles.js";
-const inspect = require("util").inspect; //import { inspect } from "util";
 
-const version = "1.01";
+const writePool = require("./WritePool.js");
+const { ProfileClass } = require("./Profiles"); 
+const inspect = require("util").inspect; 
+let profiles;
+const version = "1.1.0";
 
 
 class GwLogger {
-	constructor(logLevelStr, isConsole, isFile, fn) {
-		this.activeProfile = profiles.getActiveProfile(); // use these defaults as backdrop
+	constructor(param1, isConsole, isFile, fn) {
+		this.logLevelStr = undefined;
+		if (typeof param1 === "object" && param1.profileFn) {
+			isConsole = undefined;
+			isFile = undefined;
+			fn = undefined;
+			profiles = new ProfileClass(param1.profileFn);
+		} else {
+			this.logLevelStr = param1;
+			profiles = new ProfileClass();
+		}
+		this.activeProfile = profiles.getActiveProfile(); // use env vars, json, or built-ins as defaults
 		this.logLevels = ["OFF", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEV", "DEBUG", "TRACE", "ALL"];
 		this.wsSources = {global: "global", custom: "custom"};
-		if (profiles.isValidStr(logLevelStr)) {
-			logLevelStr = logLevelStr.trim().toUpperCase();
+		if (profiles.isValidStr(this.logLevelStr)) {
+			this.logLevelStr = this.logLevelStr.trim().toUpperCase();
 		}
-		if (!profiles.isValidStr(logLevelStr) || this.logLevels.findIndex(level => level === logLevelStr) < 0) {
-			if (logLevelStr) { // typo or such. Post an error message. It's worse than nothing...
-				let stack = this.getStackTrace(new Error());			
+		if (!profiles.isValidStr(this.logLevelStr) || this.logLevels.findIndex(level => level === this.logLevelStr) < 0) {
+			if (this.logLevelStr) { // typo or such. Post an error message.
+				let stack = profiles.getStackTrace(new Error());			
 				console.error("\x1b[31m%s\x1b[0m", "ERROR: Log level must be one of: "  + this.logLevels.join()+"\n",stack);
-				console.error("\x1b[31m%s\x1b[0m", ">>>> But, was given log level of: " + logLevelStr + " <<<<"); 
+				console.error("\x1b[31m%s\x1b[0m", ">>>> But, was given log level of: " + this.logLevelStr + " <<<<"); 
 				console.error("\x1b[31m%s\x1b[0m", ">>>>After ERROR, will set to " + this.activeProfile.logLevelStr + " and try to continue.<<<<");
 			}
-			logLevelStr = this.activeProfile.logLevelStr;
-			this.logLevel = this.logLevels.findIndex(level => level === logLevelStr);
-		} else this.logLevel = this.logLevels.findIndex(level => level === logLevelStr);
+			this.logLevelStr = this.activeProfile.logLevelStr;
+			this.logLevel = this.logLevels.findIndex(level => level === this.logLevelStr);
+		} else this.logLevel = this.logLevels.findIndex(level => level === this.logLevelStr);
 
 		this.moduleName = ""; // short name/description of module or source file doing the logging (prints to log)
 		this.timeStampFormat = {};
@@ -54,9 +60,10 @@ class GwLogger {
 		this.isConsoleTs = this.activeProfile.isConsoleTs;
 		
 		this.isConsole = isConsole === undefined ? this.activeProfile.isConsole : isConsole;
-		this.isFile = isFile === undefined ? this.activeProfile.isFile : isFile;
+		this.isFile = (isFile === undefined) ? this.activeProfile.isFile : isFile;
 		this.fn = profiles.isValidStr(fn) ? fn.trim() : null;
-		this.ucFn = this.fn ? this.fn.replace(/\s+/g, '').toUpperCase() : null;
+		this.ucFn = this.fn ? writePool.getUcFn(this.fn) : null; //this.fn.replace(/\s+/g, "").toUpperCase() : null;
+		
 		this.wsSource = (this.fn) 
 			? this.wsSources.custom 
 			: this.wsSources.global;
@@ -66,26 +73,23 @@ class GwLogger {
 			try {
 				this.ensureWriteStream();
 			} catch(err) {
-				console.error("ERROR in GwLogger creating custom logfile", err);
-				//let stack = this.getStackTrace(new Error());			
-				//console.error("\x1b[31m%s\x1b[0m", "ERROR: Unlikely filename or other issue while creating a new logging file stream in GwLogger.\n",stack);				
-				process.exit(1); // All stop (TODO, just log in the built-in default location instead of dying?)
+				console.error("ERROR in GwLogger creating initial logfile for: ",this.fn,"\n", err);				
+				process.exit(1); // All stop 
 			}
 		}
 		if (this.wsSource === this.wsSources.custom && this.fn && this.logLevel > 0 && this.isFile) {
 			try {
 				this.ensureWriteStream();
 			} catch(err) {
-				console.error("ERROR in GwLogger creating custom logfile:", err);
-				process.exit(1); // All stop (TODO, just log in the default location instead of dying?)
+				console.error("ERROR in GwLogger creating custom logfile for: ",this.fn,"\n", err);
+				process.exit(1); // All stop
 			}
 		} 		
 	}
 	
-	getStackTrace(err) { // Trims stacktrace to point at perpetrator
-		let stack = err.stack;
-		stack = stack.split("\n").map(function (statement) { return statement.trim(); });
-		return stack.splice(stack[0] == "Error" ? 2 : 1);		
+	// Test Instrumentation
+	getProfilesInstance() {
+		return profiles;
 	}
 	
 	setModuleName(mn) {		
@@ -175,11 +179,11 @@ class GwLogger {
 	}
 	
 	setIsShowMs(b) {
-		this.timeStampFormat.ms = b;
+		this.timeStampFormat.isShowMs = b;
 	}
 	
 	getIsShowMs() {
-		return this.timeStampFormat.ms;
+		return this.timeStampFormat.isShowMs;
 	}	
 	
 	setIsConsoleTs(b) {
@@ -266,6 +270,47 @@ class GwLogger {
 		return this.fn || this.getActiveProfile().fn;
 	}
 	
+	// roll by size settings
+	setIsRollBySize(b) {
+		writePool.setIsRollBySize(this.ucFn, b);
+	}
+	getIsRollBySize() {
+		return writePool.getIsRollBySize(this.ucFn);
+	}	
+	
+	setMaxLogSizeKb(kb) { // approx max of each logfile
+		writePool.setMaxLogSizeKb(this.ucFn, kb);
+	}
+	getMaxLogSizeKb() {
+		return writePool.getMaxLogSizeKb(this.ucFn);
+	}
+
+	setMaxNumRollingLogs(n) { // how many logfiles to keep
+		writePool.setMaxNumRollingLogs(this.ucFn, n);
+	}	
+	getMaxNumRollingLogs() {
+		return writePool.getMaxNumRollingLogs(this.ucFn);
+	}
+
+	setRollingLogPath(p) { // the path to store old logfiles (cannot be same as logfile)
+		return writePool.setRollingLogPath(this.ucFn, p);
+	}	
+	getRollingLogPath() {
+		return writePool.getRollingLogPath(this.ucFn);
+	}
+
+	getWritableLengthKb() {
+		return writePool.getWritableLengthKb(this.ucFn); // Size in KB of this logfile's write buffer.
+	}
+	
+	getIsQueuing() {
+		return writePool.getIsQueuing(this.ucFn);
+	}
+	
+	getIsRolling() {
+		return writePool.getIsRolling(this.ucFn);
+	}
+	
 	// Make sure the stream registry has a stream for us
 	ensureWriteStream() {
 		if (this.wsSource === this.wsSources.custom) {
@@ -284,7 +329,7 @@ class GwLogger {
 				throw("Was unable to find or create a valid logfile for profile.", err);
 			}								
 		}
-		this.ucFn = this.getFn() ? this.getFn().replace(/\s+/g, '').toUpperCase() : null;		
+		this.ucFn = this.getFn() ? writePool.getUcFn(this.getFn()): null;		
 	}		
 	
 	formatArgs(args, isColor) {
@@ -304,7 +349,7 @@ class GwLogger {
 	}
 	
 	write2log(logLevelNum, logLevelStr, isColor, msg) {
-		let bufferOk = true; // will be set later by "backpressure" indicator from writeStream.write
+		let bufferOk = true; // will be set later by "backpressure" indicator from writeStream.write (if also logging to file)
 		let t;
 		if (!isColor) {
 			if (Array.isArray(msg)) t = this.formatArgs(msg, false);
@@ -340,7 +385,6 @@ class GwLogger {
 				if (Array.isArray(msg)) t = this.formatArgs(msg, false); // no color for logfile
 				else t = msg;
 			}
-			//else t = msg;
 			let txt = this.moduleName 
 				? timestamp + this.sepCharFile + logLevelStr+" " + this.moduleName + ": " + t 
 				: timestamp + this.sepCharFile + logLevelStr+": " + t;
@@ -413,8 +457,5 @@ class GwLogger {
 	
 } // end of class GwLogger
 
-/*
-export { GwLogger };
-*/
 
 exports.GwLogger = GwLogger;

@@ -1,30 +1,22 @@
 "use strict";
-// UtEsm01.mjs  -- for test of ES6 import syntax
+// UnitTestsGwLogger_05.mjs  -- for test of ES6 import syntax
 
 import sa from "assert";
 import gwl from "../GwLogger.js";
-import profiles from "../Profiles.js";
 
 const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
-/*
-const GwLogger = require("../GwLogger").GwLogger;
-const profiles = require("../Profiles.js");
-let assert;
-assert = require('assert').strict;
-if (!assert) assert = require('assert'); // for node < 10.0 without strict mode
-*/
 
-const versionRef = "1.01"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.1.0"; // set to target version of GwLogger for test of getVersion method.
 	
-const tlog = new GwLogger("info", true, true, "./logfiles/logJsonFile.log");
-tlog.setModuleName("UtEsm01");
-tlog.notice("\n\n===> UtEsm01.mjs is running");
+const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
+tlog.setModuleName("UT_05");
+tlog.notice("===> UnitTestsGwLogger_05.mjs is running, logfile is: ./logfiles/Unit Test Results.log");
+	
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
 let nPassed = 0;
-
 
 // Included here to ensure we are testing correct version.
 const test_getVersion = function() {
@@ -40,10 +32,10 @@ const test_getVersion = function() {
 		tlog.error("Fail TESTING: test_getVersion: ");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 test_getVersion();
 
-tlog.notice("\nTotal UtEsm01.mjs Unit Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
+tlog.notice("\nTotal UnitTestsGwLogger_05.mjs Unit Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
 	
 	

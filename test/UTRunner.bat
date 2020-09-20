@@ -1,15 +1,18 @@
 @ECHO OFF
 REM -- UNIT TEST RUNNER, GwLogger
+REM --- see test/DescriptionsOfTests.txt
 REM
 
 call envUnset.bat
-del .\gwl_log.log
+If EXIST ".\gwl_log.log" (
+	del ".\gwl_log.log"
+)
 node UnitTestsGwLogger_01.js
 node UnitTestsGwLogger_02.js
-node UtEsm01.mjs
-
 call envSet.bat
 node UnitTestsGwLogger_03.js
-
 call envUnset.bat
+node UnitTestsGwLogger_04.js
+node UnitTestsGwLogger_05.mjs
+
 

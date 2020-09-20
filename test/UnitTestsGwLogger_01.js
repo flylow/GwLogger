@@ -1,4 +1,5 @@
 "use strict";
+/*global require */ // A directive for exceptions to ESLint no-init rule
 
 /*
 // ------------   If using import (file must be renamed .mjs) -----------------
@@ -11,43 +12,26 @@ const GwLogger = gwl.GwLogger;
 // -- end of import section
 */
 
-// ------------   If using require (file must be renamed .mjs) -----------------
+// ------------   If using require -----------------
 const GwLogger = require("../GwLogger").GwLogger;
-const profiles = require("../Profiles.js");
+//const profiles = require("../Profiles.js").profiles;
 let assert;
-assert = require('assert').strict;
-if (!assert) assert = require('assert'); // for node < 10.0 without strict mode
+assert = require("assert").strict;
+if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.01"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.1.0"; // set to target version of GwLogger for test of getVersion method.
 	
-//const tlog = new GwLogger("info", true, true, "./logfiles/logJsonFile.log");
-const loggw = new GwLogger();
-loggw.setIsConsole(true);
-console.log("Loglvel is: ", loggw.getLogLevel());
-loggw.info("Hi from UT01");
-loggw.setLogLevel("INFO");
-loggw.info("Hi from UT01, 2");
-loggw.setIsFile(true);
-loggw.info("Hi from UT01, 3");
-const tlog = new GwLogger("OFF", true, false, "./logfiles/logJsonFile.log");
-tlog.setLogLevel("info");
-tlog.setIsFile(true);
+const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
+tlog.notice("-----------------------------  Unit Testing Begins -----------------------------------------------");
 tlog.setModuleName("UT_01");
-tlog.notice("\n\n===> UnitTestsGwLogger_01.js is running");
+tlog.notice("===> UnitTestsGwLogger_01.js is running, logfile is: ./logfiles/Unit Test Results.log");
+
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
 let nPassed = 0;
 
-function replacer(key, value) {
-  // Filtering out properties
-  if (key === "gwWriteStream") {
-    return undefined;
-  }
-  return value;
-}
 
-// This is a static function, but included here to ensure we are testing correct version.
 const test_getVersion = function() {
 	nTests++;
 	try {
@@ -59,30 +43,7 @@ const test_getVersion = function() {
 		tlog.error("Fail TESTING: test_getVersion: ");
 		if (showStackTrace) tlog.error(err);
 	}
-}
-let jsonReturnTmp = profiles.getActiveProfile();
-tlog.debug("Saved env profile + built-in defaults loaded by Unit Tests are: ",jsonReturnTmp);
-
-// setActiveProfile does not allow overwrites, so first we go to the global and delete the previously loaded data.
-profiles.deleteProfileData();
-
-let jsonDefTest = {
-	"fn": "./logfiles/logUnitTestInstance.log",
-	"logLevelStr": "error",
-	"isFile": false,
-	"isConsole": true,
-	"isConsoleTs": false,
-	"isEpoch": false,
-	"nYr": 0,
-	"isLocalTz": true,
-	"isShowMs": false
-	};
-
-	// some more prep work to arrive at a solid starting place
-	profiles.createActiveProfile(jsonDefTest); // assuming it passed static unit tests done elsewhere
-	let jsonReturn = profiles.getActiveProfile();
-	let jsonReturnStr = JSON.stringify(jsonDefTest, replacer, 2);
-	tlog.debug("Saved profile settings created by Unit Tests are: ",jsonReturnStr);
+};
 
 const test_setIsEpoch = function() {
 	nTests++;		
@@ -100,7 +61,7 @@ const test_setIsEpoch = function() {
 		tlog.error("Fail TESTING: test_setIsEpoch");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setIsShowMs = function() {	
 	nTests++;
@@ -118,7 +79,7 @@ const test_setIsShowMs = function() {
 		tlog.error("Fail TESTING: test_setIsShowMs");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setIsLocalTz = function() {
 	nTests++;
@@ -136,7 +97,7 @@ const test_setIsLocalTz = function() {
 		tlog.error("Fail TESTING: test_setIsLocalTz");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setYearDigits = function() {
 	nTests++;
@@ -154,7 +115,7 @@ const test_setYearDigits = function() {
 		tlog.error("Fail TESTING: test_setYearDigits");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setIsConsoleTs = function() {
 	nTests++;
@@ -172,7 +133,7 @@ const test_setIsConsoleTs = function() {
 		tlog.error("Fail TESTING: test_setIsConsoleTs");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setSepCharX = function() {	
 	nTests++;
@@ -197,7 +158,7 @@ const test_setSepCharX = function() {
 		tlog.error("Fail TESTING: test_setSepChar");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setLogLevel = function() {
 	nTests++;
@@ -215,7 +176,7 @@ const test_setLogLevel = function() {
 		tlog.error("Fail TESTING: test_setLogLevel");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setIsConsole = function() {	
 	nTests++;
@@ -233,7 +194,7 @@ const test_setIsConsole = function() {
 		tlog.error("Fail TESTING: test_setIsConsole");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_setIsFile = function() {	
 	nTests++;
@@ -251,7 +212,7 @@ const test_setIsFile = function() {
 		tlog.error("Fail TESTING: test_setIsFile");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 // Tests that getFn can get both a profile/default fn and also one set by constructor
 const test_getFn = function() {	
@@ -260,18 +221,23 @@ const test_getFn = function() {
 		let log = new GwLogger("WARN", false, false, "./logfiles/testLog4getFn.log");
 		let fn = log.getFn();
 		// The following fn should equal the one above, passed in the args to create a new logger.
-		assert.ok(fn === "./logfiles/testLog4getFn.log", "getFn failed, fn="+fn); 
+		assert.ok(fn === "./logfiles/testLog4getFn.log", "getFn failed 1, fn="+fn); 
 		//console.log("getFn() for constructor's custom fn/stream completed okay.");
 		let log2 = new GwLogger("ERROR", true, true);
 		fn = log2.getFn();
-		assert.ok(fn === "./logfiles/logUnitTestInstance.log", "getFn failed, fn="+fn);
+		assert.ok(fn === "./logfiles/logJsonFile.log", "getFn failed 2, fn="+fn);
 		nPassed++;
 		tlog.info("test_getFn (both substests) Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_getFn");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
+
+
+
+const logp = new GwLogger( 	{ "profileFn": "./GwLoggerTEMP.json" });	
+logp.info("Profile profileFn works!");
 
 
 test_getVersion();

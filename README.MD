@@ -3,6 +3,12 @@ GwLogger aspires to be a straight-forward, no-hassle logger for NodeJS which log
 
 GwLogger requires Node.js, version 8.0 or greater. It does not support browser development.
 
+## Feature Releases ##
+|Release   |Date| Summary  |
+| ------------ | -- | ------------ |
+| 1.0.0 | 2020-08-09 | Initial Release |
+| 1.1.0 | 2020-09-21 | Add rolling logs (by size) and multiple profile support |
+
 ## Installation ##
 Install locally from your project\'s main directory into the node_modules directory via NPM:
 ```javascript
@@ -27,11 +33,16 @@ Now that you have a logger defined, you can log something:
 
 `log.warn("Did this warning get logged?");`
  
+
 **05-13T21:08:39:027 WARN: Did this warning get logged?**
 The line from your logfile shows the result. Obviously, this warning was logged on May 13th at 9:08pm, plus 39 seconds and 27 milliseconds.
 
-### Constructor ###
-GwLogger(loglevel, isConsole, isFile, fileName)
+The API, described later, can be used to change most settings, for example the loglevel can be adjusted this way:
+```javascript
+log.setLogLevel("debug");
+```
+### Constructors ###
+#### GwLogger(loglevel, isConsole, isFile, fileName) ####
 Where:
 * loglevel is a case-insensitive string, one of: off, fatal, error, notice, info, dev, debug, trace, or all. The default is off;
 * isConsole is a boolean and indicates logging should be displayed on console. The default is false;
@@ -40,9 +51,10 @@ Where:
 
 Sample Uses:
 ```javascript
-const log = new GwLogger("info", true, true);
-const log = new GwLogger("info", true, true, "./logfiles/mylogfile.log");
-```
+const log = new GwLogger(); // uses defaults, will not log to console or file
+const log = new GwLogger("info", true, false); // logs to console only
+const log = new GwLogger("info", true, true, "./logfiles/mylogfile.log"); // logs to console and mylogfile
+``` 
 
 `let log = new GwLogger("DEBUG", true, false);`  creates a logger at debug level, and adds logging-to-console, but turns off logging to file. The following statment in your source:`log.debug("Did this debug detail get logged?");`
 would result in an item like this on the console:
@@ -52,11 +64,10 @@ By built-in default, logging is to a file named "./gwl_log.log" in your apps cur
 
 A new instance of GwLogger must be created inside each source file in which you want to do logging. A couple of other examples of logger initialization, the first of which logs to both console and file at the "info" log level:
 
-`const log = new GwLogger("info", true, true);`
+`const log = new GwLogger("info", true, true);` // logs to console and the default log file
+`const log = new GwLogger("info", false, true, "./logger/logger.log");` // does not log to console
 
-`const log = new GwLogger("info", true, true, "./logger/logger.log");`
-
-The second construction above overrides the default logfile location only for its specific logger.
+The second construction above overrides the default logfile location only for this specific logger.
 
 The supported log levels are: OFF, FATAL, ERROR, WARN, NOTICE, INFO, DEV, DEBUG, TRACE, and ALL. Change the log level for any logger instance at any time in your source by calling (for example): `log.setLogLevel("info");`
 
@@ -66,14 +77,24 @@ The above is about all you\'ll usually need for many NodeJS projects.
 
 Some settings can only be specified at runtime via the API. For instance, the module\'s name (or other short descriptor) can be added near the beginning of each logged statement by adding this in your source code: `log.setModule("myMain");` Timestamps can be added to console output (they always appear in logfiles) by using: `log.setIsConsoleTs(true);` Those two statements would result in:
 **05-13T21:08:39:027 DEBUG myMain: Did this debug detail get logged?**
-### Timestamp formats ###
+##### Timestamp formats #####
 Timestamp formats are based on ISO-8601, although that can be tweaked with the profile or environment variables, and at runtime. For instance, you can specify the number of year digits, whether to include milliseconds, or local vs. UTC time.
 
-Besides ISO-8601, you can specify to show timestamps in only milliseconds since 1/1/1970 UTC (the Unix Epoch).
+Besides ISO-8601, you can specify to show timestamps in only milliseconds since 1/1/1970 UTC (aka the Unix Epoch).
+
+#### GwLogger(profile_object) ####
+In this constructor, profile_object contains an attribute profileFn with string value pointing to a file to use for this logger\'s JSON profile. Profiles are described in the next section.
+
+Sample use:
+```javascript
+const log = new GwLogger({profileFn: "./profiles/myprofile.json"}});
+```
 
 ## Profile or Environment Variables
-A common way to specify a different basic logfile name and other default parameters is to create a logging profile -- a small json file, saved in the same directory as the initiating application, and shared by all its loggers. It must be named "GwLogger.json", and it is read by GwLogger at load time. Any specified setting will override the default setting for that attribute, but only the attributes shown in the example below can be recognized. This example also documents the built-in defaults.
- ##### Example of GwLogger.json using built-in defaults, #####
+A common way to specify the logfile name and other logging parameters is to create a logging profile -- a small json file, which can be shared by all loggers by default or described uniquely to each logger.
+
+By default at startup, each instance of GwLogger checks for environment variables (described later), but if none are found looks in the same directory as the initiating application for an optional JSON profile. If used, it must be named \"GwLogger.json\". Any specified setting in the file will override the built-in default setting for that attribute, but only the attributes shown in the example below will be recognized. This example also documents the built-in defaults.
+ ##### Example of GwLogger.json using built-in default values, #####
 ```json
   {
 	"fn": "./gwl_log.log",
@@ -83,11 +104,15 @@ A common way to specify a different basic logfile name and other default paramet
 	"isEpoch": false,
 	"nYr": 0,
 	"isLocalTz": true,
-	"isShowMs": true
+	"isShowMs": true,
+	"isRollBySize": false,
+	"rollingLogPath": null,
+	"maxLogSizeKb": 0,
+	"maxNumRollingLogs": 0
   }
 ```
  		
-If found, all instances of GwLogger for your application will use this profile as your default values. 
+If found, all instances of GwLogger for your application will use this profile to override built-in default values, unless a different profile is specified or environment variables are found. 
   
 If you prefer (or are required by your build process) to store the profile as a group of environment variables, then each one should be preceded by "GWL_" so that GwLogger can find them. Such as:
 ```shell
@@ -96,30 +121,40 @@ GWL_isConsole=true
 GWL_nYr=4
 ```
 You\'ll set these in an [operating-system-specific](https://en.wikipedia.org/wiki/Environment_variable "operating-system-specific") way, or maybe use [dotenv](https://github.com/motdotla/dotenv "dotenv").  
-Any values that are not set by a profile file or in the environment variables will be initialy set according to the built-in defaults.
+Any values that are not set by the shared GwLogger.json profile, another json file you specify in the constructor, or in the environment variables will be initialy set according to the built-in defaults.
 
-To write to a different log file than the built-in default, the profile or in environment variables, pass a new name into a constructor as the fourth parameter: 
-`const log = new GwLogger("TRACE", true, true, "mylog.txt");` 
-GwLogger attempts to use the same write buffer for all loggers with the same filename, which helps keep timestamps in proper order during heavy logging periods. 
+To write to a different log file than the built-in defaults, the environment variables, or the ./GwLogger.json file specify, pass a new name into a constructor as the fourth parameter, and the others will be overridden: 
+`const log = new GwLogger("TRACE", true, true, "mylogdir/mylog.log");` 
+In any case, make certain that the directory already exists, GwLogger will create the file but not the directory.
+
+## Rolling Logs ##
+
+Rolling logs help you manage your logfiles. GwLogger supports rolling by logfile size. When your logfile reaches a specified size, it is copied/renamed and logging continues with an empty logfile. There are four parameters: isRollBySize, maxLogSizeKb, maxNumRollingLogs, and rollingLogPath. Note that the rollingLogPath must already exist.
+
+The four parameters may be defined in your JSON profiles, environment variables, or you can manipulate rolling logs via the API. The rolled logs are named with the logger\'s logfile name with "_nnn" appended, such as gwl_log_001.log, gwl_log_002.log, ..., gwl_log_nnn.log. The larger numbers will contain the older data.
+
+Note that all four parameters must be defined (including rollingLogPath).
+
+If you change any settings for rolling logs via the API, the isRollBySize flag will **always** be reset to false. After you complete the changes, you will need to use setRollBySize(true), as described in the API section.
 
 #### Log Levels 
-A note about GwLogger log levels: The default is OFF, but log levels can be specified at almost any time, either with the GwLogger.json profile, environment variables, at assignment time as with log = new GwLogger("debug"), or at run time with log.setLogLevel("info"). As with other loggers, logging will occur for any log statement at, or higher, than the currently set log level. Here are the log levels supported by GwLogger:
+A note about GwLogger log levels: The default is OFF, but log levels can be specified at almost any time, either with the GwLogger.json profile, environment variables, at assignment time as with log = new GwLogger(\"debug\"), or at run time with log.setLogLevel(\"info\"). As with other loggers, logging will occur for any log statement at, or higher, than the currently set log level. Here are the log levels supported by GwLogger:
 
 *	OFF=Does not log *Anything*. This benefits some picky build tools, and is the built-in default.
 *	FATAL=Rarely used. The outlook is bleak, stuff is broken! Wake someone up now, the business depends on the code running! Do not use this level lightly! 
 *	ERROR=Serious prob, going to try to continue, but will likely die or run suboptimal quality and/or performance.
-*	WARN=something unexpected happened, suprisingly we're still okay. This needs to be investigated, but it seems we can keep running.
+*	WARN=something unexpected happened, suprisingly we\'re still okay. This needs to be investigated, but it seems we can keep running.
 *	NOTICE=The user may need to do something, (like renew a subscription, backup a DB), other normal business. This is the highest logging level that the business or an end-user would usually care about.
 *	INFO=Nothing too important, but interesting process measurements, or just heartbeat-type info. More dev-oriented than business.
 *	DEV=DebugLite, or DebugTmp. Use for short periods of intense bug hunting and, well, development. This is a non-standard log level.
 *	DEBUG=more detail than INFO. More long-term than DEV.
 *	TRACE=debug plus excruciating amount of additional detail, like values inside loops, or colliding spawned processes. Call home, tell them you\'ll be late.
-*	ALL=currently same as trace. Included for compatibility's sake, not really useful in GwLogger.
+*	ALL=currently same as trace. Included for compatibility\'s sake, not really useful in GwLogger.
 
 Log levels are used in two ways: To set the current logging level and in logging statements. All the above except OFF and ALL may be used in logging statements, but lower-case only.
 
 ### GwLogger\'s Application Programming Interface (API)
-The API contains a list of public methods for each logger accessed as in the earlier examples: `log.<apiCall()>.` Settings that can also be specified in the profile are marked with an '*\'. Environment variable names are given, when applicable. API methods will override profile/environment settings, and profile/environment settings will override built-in defaults. If a GwLogger.json file is found, environment variables are ignored.
+The API contains a list of public methods for each logger accessed as in the earlier examples: `log.<apiCall()>.` Settings that can also be specified in the profile are marked with an '*\'. Environment variable names are given, when applicable. API methods will override profile/environment settings, and profile/environment settings will override built-in defaults. If any GwLogger environment variable is found, JSON profile files are ignored.
 
 
 
@@ -129,30 +164,43 @@ The API contains a list of public methods for each logger accessed as in the ear
 |  getVersion(); |   Returns the version number of your current installation of GwLogger. |
 |setModuleName(name); | Optionally tags this logger with the module name, so it can display on each log item. Useful when you have many source files logging into the same file, which is often the case. Helps pin the blame. You could use any text you want as 'name\'. `log.setModuleName("MyModule");  // would show our debug sample statement like this:` **07-13T21:28:00 DEBUG MyModule: Did this debug detail get logged?** There is no default module Name;|
 |getModuleName(); | Returns the module name set for this logger, or null if none set.| 
-|*setIsEpoch(b); | Timestamp modifier. If boolean is true, then timestamp will be milliseconds since 1/1/1970 (UNIX Epoch). If this is set to true, then other timestamp modifiers (timezone, year-digits, show milliseconds) will be ignored. Default is false. Environment variable: "GWL_isEpoch=`<boolean>`\".|
+|*setIsEpoch(b); | Timestamp modifier. If boolean is true, then timestamp will be milliseconds since 1/1/1970 (UNIX Epoch). If this is set to true, then other timestamp modifiers (timezone, year-digits, show milliseconds) will be ignored. Default is false. Environment variable: "GWL_isEpoch=\"\<boolean>.|
 |getIsEpoch(); | Returns boolean true/false.|
-|*setIsLocalTz(b); |Timestamp modifier. If boolean is true, timestamps will be in local time. If false, times will be UTC. Default is true. Environment variable: "GWL_isLocalTz=`<boolean>`\".|
+|*setIsLocalTz(b); |Timestamp modifier. If boolean is true, timestamps will be in local time. If false, times will be UTC. Default is true. Environment variable: "GWL_isLocalTz=\"\<boolean>.|
 |getIsLocalTz(); | Returns true/false boolean value.|
-|*setYearDigits(n); | Timestamp modifier. Sets the number of timestamp digits to use for year. Must be 0 through 4. Default is 0, do not show year digits. Environment variable: "GWL_nYr=`<0 ... 4>`\".|
+|*setYearDigits(n); | Timestamp modifier. Sets the number of timestamp digits to use for year. Must be 0 through 4. Default is 0, do not show year digits. Environment variable: "GWL_nYr=\"`<0 ... 4>`.|
 |getYearDigits(); | Returns the number of digits for printing the year in a timestamp.
-*setIsShowMs(b); | Timestamp modifier. If boolean is true, will include milliseconds as part of normal timestamp. Default is true, show milliseconds. Environment variable: "GWL_isShowMs=`<boolean>`\".|
+*setIsShowMs(b); | Timestamp modifier. If boolean is true, will include milliseconds as part of normal timestamp. Default is true, show milliseconds. Environment variable: "GWL_isShowMs=\"\<boolean>.|
 |getIsShowMs(); | Returns boolean true/false.|
 |setIsConsoleTs(b); | If boolean is true, will show timestamps on console logs. Default is false.|
 |getIsConsoleTs(); | Returns boolean true/false.|
-|*setLogLevel(logLevelStr); | Switches to specified log level. logLevelStr may be off, fatal, error, ..., or all. The logLevelStr is not case-sensitive. Default is "OFF". Environment variable: "GWL_logLevelStr=`<loglevel>`.|
+|*setLogLevel(logLevelStr); | Switches to specified log level. logLevelStr is a case-insensitive string, one of: off, fatal, error, notice, info, dev, debug, trace, or all. The default is "OFF". Environment variable: "GWL_logLevelStr"=`<logLevelStr>`.|
 |getLogLevel(); | Returns the current log level.
-*setIsConsole(b); | If b is true, will allow logging to console. If false, no logging is done to console. Default is false, no logging to console.|
+*setIsConsole(b); | If b is true, will allow logging to console. If false, no logging is done to console. Default is false, no logging to console. "GWL_isConsole=\"\<boolean> |
 |getIsConsole(); | Returns boolean true/false|
-|*setIsFile(b); |  If b is true, will allow logging to file from this time forward. If false, no logging is done to file. Default is true, log to file. If initially set to false, no file will be created or appended unless later set to true. Environment variable: "GWL_isFile=`<boolean>`\".|
+|*setIsFile(b); |  If b is true, will allow logging to file from this time forward. If false, no logging is done to file. Default is true, log to file. If initially set to false, no file will be created or appended unless later set to true. Environment variable: "GWL_isFile=\"\<boolean>.|
 |getIsFile(); | Returns boolean true/false.|
-|getFn(); | Returns a string with the path and name of the current logfile.|
+|getFn(); | Returns a string with the path and name of the current logfile. Note that the path and name cannot be set from the API.|
 |setDepthNum(n); | n is an integer or null. Sets the depth level for logging object contents. Default n is 2. Use null to print all levels.|
-|getDepthNum(); | returns an integer.|
+|getDepthNum(); | returns a number.|
+|*setRollingLogPath(path); | Defines the directory where older logs should be saved. The default is null. The directory must exist. Environment variable: \"GWL_rollingLogPath=\"\<string> |
+|getRollingLogPath(); |Return a string with path. |
+|*setMaxNumRollingLogs(n); |The maxiumun number of old logs to save. Defaults to 0, n must range between 0-20. Environment variable: \"GWL_maxNumRollingLogs=\"\<0..20> |
+|getMaxNumRollingLogs(); |Returns a number |
+|*setMaxLogSizeKb(k);|How large the logfile can become before GwLogger attempts to roll it. k must be an integer representing kilobytes. So, if setMaxLogSizeKb(2000), then GwLogger will start the rolling process when the logfile size is 2MB. Environment variable: \"GWL_maxLogSizeKb=\"\<boolean>|
+|getMaxLogSizeKb(); |Returns a number |
+|*setIsRollBySize(b); |If b=true, will attempt to turn on rolling logs. Must be the last setting for roll files, because other roll setting changes via the API will automatically set this to false. Environment variable: \"GWL_isRollBySize=\"\<boolean>|
+|getIsRollBySize(); |Return boolean true/false. |
 
-Of course, the log statement levels are class methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
+Of course, most log statement levels are class methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
 log.`<level>`(`<data to log>`). You may also comma-separated data items:
 `log.dev("Value of object vehicle is: ", vehicle);`
 
+### Developer and Tester Notes ###
+Test directories and files are not included in the NPM releases, but can be found on GitHub. In the test directory, see the file \"DescriptionOfTests.txt\".
+
+
 MIT license.
+
 --G. Wilson, 6/2020
 

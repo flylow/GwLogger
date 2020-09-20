@@ -1,4 +1,5 @@
 "use strict";
+/*global console, process, require */ // A directive for exceptions to ESLint no-init rule
 
 /*
 // ------------   If using import (file must be renamed .mjs) -----------------
@@ -11,26 +12,31 @@ const GwLogger = gwl.GwLogger;
 // -- end of import section
 */
 
-// ------------   If using require (file must be renamed .mjs) -----------------
+// ------------   If using require -----------------
 const GwLogger = require("../GwLogger").GwLogger;
-const profiles = require("../Profiles.js");
 const existsSync = require("fs").existsSync;
 const unlinkSync = require("fs").unlinkSync;
+const path = require("path");
+let profiles;
 let assert;
-assert = require('assert').strict;
-if (!assert) assert = require('assert'); // for node < 10.0 without strict mode
+assert = require("assert").strict;
+if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
 try {
-	unlinkSync("./logfiles/logJsonFile.log"); // out with the old
-} catch(err) { // noop
+	if (existsSync("./logfiles/logJsonFile.log")) {
+		unlinkSync("./logfiles/logJsonFile.log"); // out with the old
+	}
+} catch(err) { 
+	console.log("Error in unlinkSync in UnitTestsGwLogger_02: ", err);
+	throw err;
 }
 
-const versionRef = "1.01"; // version number of targeted GwLogger.
+const versionRef = "1.1.0"; // version number of targeted GwLogger.
 	
-const tlog = new GwLogger("info", true, true, "./logfiles/logUT_02.log");
+const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
-tlog.info("===> UnitTestsGwLogger_02.js is running, logfile is: ./logfiles/logUT_02.log");
+tlog.notice("===> UnitTestsGwLogger_02.js is running, logfile is: ./logfiles/Unit Test Results.log");
 	
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
@@ -55,21 +61,21 @@ const test_getVersion = function() {
 		tlog.error("Fail TESTING: test_getVersion: ");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 const test_creationStories = function() {
 	nTests++;
 	try {
-	const loggerTest1 = new GwLogger(); // smoke test 1, should NOT create log file
+	const loggerTest1 = new GwLogger(); // smoke test, should NOT create log file
 	const fn = loggerTest1.getFn();
-	assert.ok(fn === "./logfiles/logJsonFile.log"); // ensure deleted correct one
-	console.log("-------------------> Creation Stories profile matches ok");
+	assert.ok(fn === "./logfiles/logJsonFile.log", "fn was: ", fn); // ensure deleted correct one
+	//console.log("-------------------> Creation Stories profile matches ok");
 	let isLogExists = existsSync(fn);
 	assert.ok(!isLogExists);
-	console.log("-------------------> Creation Stories #1 ok, new log file was Not created");
+	//console.log("-------------------> Creation Stories #1 ok, new log file was Not created");
 	loggerTest1.setLogLevel("ALL"); // should create logfile since loglevel no longer "OFF"
 	loggerTest1.setIsFile(true);
-	loggerTest1.setIsConsole(true);
+	loggerTest1.setIsConsole(false);
 	loggerTest1.info("Hello from UnitTestsGwLogger_02, test_creationStories");
 	isLogExists = existsSync(fn);
 	assert.ok(isLogExists);
@@ -79,7 +85,7 @@ const test_creationStories = function() {
 		tlog.error("Fail TESTING: test_creationStories: ");
 		if (showStackTrace) tlog.error(err);
 	}	
-}
+};
 
 // Here is a set of profile data to use in test_getJsonProfile. Must be same as test/GwLogger.json!!!
 let jsonDefTest2 = {
@@ -91,8 +97,15 @@ let jsonDefTest2 = {
 	"isEpoch": false,
 	"nYr": 0,
 	"isLocalTz": true,
-	"isShowMs": true
+	"isShowMs": true,
+	"isRollBySize": true,
+	"maxLogSizeKb": 20, 
+	"maxNumRollingLogs": 9, 
+	"rollingLogPath": path.resolve("./rolledFiles")
 	};
+
+const logTest_Profile = new GwLogger(); // get a clean logger that reads test directory's default json profile, ./GwLogger.json
+profiles = logTest_Profile.getProfilesInstance(); // get this instance of profiles
 
 // Test the function that loads profile data from GwLogger.json profile.	
 const test_getJsonProfile = function() {
@@ -115,19 +128,23 @@ const test_getJsonProfile = function() {
 		tlog.error("Fail TESTING: test_getJsonProfile");
 		if (showStackTrace) tlog.error(err);
 	}
-} 
+};
 
 // Here is a set of profile data to use in tests below
 let jsonDefTest = {
-	"fn": "./logfiles/logTest.log",
-	"logLevelStr": "ERROR",
-	"isFile": true,
+	"fn": "./logfiles/logUnitTestInstance.log",
+	"logLevelStr": "error",
+	"isFile": false,
 	"isConsole": true,
 	"isConsoleTs": false,
 	"isEpoch": false,
 	"nYr": 0,
 	"isLocalTz": true,
-	"isShowMs": true
+	"isShowMs": false,
+	"isRollBySize": false,
+	"maxLogSizeKb": 0, 
+	"maxNumRollingLogs": 0, 
+	"rollingLogPath": null
 	};
 	
 // Test the function that saves new profile data.	
@@ -136,7 +153,7 @@ const test_createActiveProfile = function() {
 	try {
 		profiles.createActiveProfile(jsonDefTest); // save the test data
 		let jsonDefTestStr = JSON.stringify(jsonDefTest, replacer, 2); // hides huge gwWriteStream from compare, which varies every time.
-		let jsonReturn = profiles.getActiveProfile(); // try to get a copy of current settings
+		//let jsonReturn = profiles.getActiveProfile(); // try to get a copy of current settings
 		let jsonReturnStr = JSON.stringify(jsonDefTest, replacer, 2); // hide gwWriteStream prior to comparison
 		assert.deepStrictEqual(jsonDefTestStr, jsonReturnStr); // Compare what is stored with what we expected
 		tlog.info("test_createActiveProfile Passed!");
@@ -145,7 +162,7 @@ const test_createActiveProfile = function() {
 		tlog.error("Fail TESTING: test_createActiveProfile");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 // Tests the function that converts the user's requested log level to an integer value.
 // Conversion should not be case-sensitive, and should correctly return the numeric level 0-9.
@@ -186,7 +203,7 @@ const test_Str2NumLogLevel = function() {
 		if (showStackTrace) tlog.error(err);
 	}
 	
-}
+};
 
 // Tests the function that generates and formats timestamps. A lot of detail herein.
 //getTimeStamp(tsFormat)
@@ -199,7 +216,7 @@ const test_getTimeStamp = function() {
 	timeStampFormat.isShowMs = true; // show the milliseconds?
 	timeStampFormat.nYr = 0; // number of digits to show for the year in timestamps 0-4	
 	try {
-		ts = GwLogger.getTimeStamp(timeStampFormat)
+		ts = GwLogger.getTimeStamp(timeStampFormat);
 		let testTs = Date.now();
 		assert.ok(typeof ts === "number" && ts > 1594568938531 && testTs >= ts); // the number is an epoch TS from an earlier time than the test
 		tlog.info("Epoch subtest passed");
@@ -234,7 +251,7 @@ const test_getTimeStamp = function() {
 		if (showStackTrace) tlog.error(err);
 	}
 	
-}
+};
 
 // Test the function that evaluates file names for a new profile.
 // This should fail and hit the catch
@@ -254,7 +271,7 @@ const test_profileFileNameErrors = function() {
 		tlog.info("test_profileFileNameErrors Passed!");
 		nPassed++;
 	}
-}
+};
 
 // Test the function that evaluates file names for a custom logfile.
 // This should fail and hit the catch
@@ -269,11 +286,12 @@ const test_customFileNameErrors = function() {
 		tlog.info("test_customFileNameErrors Passed!");
 		nPassed++;
 	}
-}
+};
 
 // Test that the pool returns the same stream for two distinct custom loggers, as long as using the same logfile.
 const test_customStreamPools = function() {
 	let logger = new GwLogger("trace", true, true, "./logfiles/logJsonFile.log"); // same logfile as tlog.
+	logger.trace("This 'logger' exists only to ensure logJsonFile profile exists for test_customStreamPools test case.");
 	nTests++;
 	try {
 		let streamTlog = profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
@@ -285,7 +303,7 @@ const test_customStreamPools = function() {
 		tlog.error("Fail TESTING: test_customStreamPools");
 		if (showStackTrace) tlog.error(err);
 	}
-}
+};
 
 
 

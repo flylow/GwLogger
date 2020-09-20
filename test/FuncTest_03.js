@@ -10,11 +10,9 @@ const GwLogger = gwl.GwLogger;
 // -- end of import section
 */
 
-// ------------   If using require (file must be renamed .mjs) -----------------
+// ------------   If using require -----------------
 const GwLogger = require("../GwLogger").GwLogger;
-let assert;
-assert = require('assert').strict;
-if (!assert) assert = require('assert'); // for node < 10.0 without strict mode
+
 // -- end of require section
 
 /**

@@ -1,22 +1,33 @@
 
  -- Test descriptions for GwLogger --
+ 
+ Unit and Functional tests are not included with the npm package, but can be 
+ retrieved from the github repository.
 
  The Node.js "assert" package is used, and no dependencies are necessary to test. 
- Zero dependencies was a goal of gwlogger, but has led to platform-specific testing. 
- Development is in Windows right now, so there are simple runner.bat files that runs 
- the tests with help from envSet.bat and envUnset.bat.
+ Zero dependencies was a goal of gwlogger, but has led to some platform-specific tests. 
+ Development is in Windows right now, so there are simple bat files that runs 
+ the tests with help from envSet.bat and envUnset.bat. However, it is not that hard to
+ run tests manually.
  
- All testing is from the command line and should be done after changing to the test directory.
+ All testing is from the command line and should be done after changing to the 
+ gwlogger/test directory. Be sure that these directories exist before testing begins:
+   1. gwloggr/test/logfiles
+   2. gwlogger/test/rolledfiles
+   3. gwlogger/test/rolledfiles/rolledfiles2
  
- Testing on Ubuntu was by editing the .bashrc file to set/unset the environment variables.
- It is also possible to do same from NPM or terminal command, but those too are OS-specific.
+ Testing on Ubuntu was by editing .bashrc to set/unset the environment variables
+ for UnitTestsGwLogger_03.js. It is also possible to do same from NPM or terminal command, 
+ but those too are OS-specific. 
 
  Any test can be executed independently, except for UnitTestsGwLogger_03 which requires
  prep work to set up environment variables (see support files envSet.bat and envUnset.bat).
  
- The Unit Tests can be executed with UTRunner.bat, while from the gwlogger/test directory.
+ The Unit Tests can be executed with UTRunner.bat if on Windows and inside the gwlogger/test directory.
+ Progress and results can be found in ./logfiles/Unit Test Results.log. Each Unit Test provides a 
+ summary of number of tests attempted and number passed after its execution.
  
- 1. UnitTestsGwLogger_01.js, covers these test cases (mostly sets, then checks that getters will match):
+ 1. UnitTestsGwLogger_01.js, covers these core test cases (mostly sets, then checks that getters will match):
 		test_getVersion();
 		test_setIsEpoch();
 		test_setIsShowMs();
@@ -33,19 +44,38 @@
  
  2. UnitTestsGwLogger_02.js, covers these test cases:
 		test_getVersion();
+		test_creationStories();
+		test_getJsonProfile();
 		test_createActiveProfile();
 		test_Str2NumLogLevel();
 		test_getTimeStamp();
-		test_profileFileNameErrors(); // should trap on bad path
-		test_customFileNameErrors();  // should trap on bad path
+		test_profileFileNameErrors(); // should trap and continue on bad path
+		test_customFileNameErrors();  // should trap and continue on bad path
+		test_customStreamPools();
 	gwlogger\test>node UnitTestsGwLogger_02.js	
 		
  3. UnitTestsGwLogger_03.js,  test for environment variables use in profiles.
 		Requires some preparation: run 'envSet.bat' before the test file, and 'envUnset.bat' afterwards.
-		test_getEnvProfile(); // compares profile built with env variables with canned test model.
+		test_getEnvProfile(); // compares profile built with envSet.bat with canned test model.
+		gwlogger\test>envSet
+		gwlogger\test>node UnitTestsGwLogger_03.js	
+	gwlogger\test>envUnset
 		
- 4.	UtEsm01.mjs  -- A unit test for test of ES6 import syntax, 
-	Ensures that the export statements of GwLogger are compatible with import. Success is a good version test.		
+ 4. UnitTestsGwLogger_04.js,  test rolling logfiles by size.
+		test_getVersion();
+		test_maxLogSize();
+		test_maxNumRollingLogs();
+		test_rollPath();
+		test_isRollBySize();
+		test_RollingLogsViaProfile();
+		primeBlitz();
+		test_recovery(0, false);
+ 	gwlogger\test>node UnitTestsGwLogger_04.js	
+
+ 5.	UnitTestsGwLogger_05.mjs  -- A unit test to ensure export compatibility for ES6 import syntax, 
+	Ensures that the export statements of GwLogger are compatible with import. Success is a good version test.
+		test_getVersion();
+	gwlogger\test>node UnitTestsGwLogger_05.mjs	
 
  >> Functional tests log to console and/or file, and must be verified correct manually.
  
@@ -53,15 +83,15 @@
  manual inspection of output, both on the console and in the logfiles. Each test provides some additional
  detail.
 	
- 5. FuncTestCon_01.js, covers console-only on/off logging manipulation:		
-		1) Logs all levels to console
-		2) Logs No levels to console with LL=OFF
-		3) Logs NO levels to console with LL=ALL, isConsole=false
-		4) Logs all levels to console with isConsole=true (LL=ALL)
-		5) Ensure that no logging from FuncTestCon_01 creates or adds to any logfile.
+ 6. FuncTestCon_01.js, covers console-only on/off logging manipulation:		
+		1. Logs all levels to console
+		2. Logs No levels to console with LL=OFF
+		3. Logs NO levels to console with LL=ALL, isConsole=false
+		4. Logs all levels to console with isConsole=true (LL=ALL)
+		5. Ensure that no logging from FuncTestCon_01 creates or adds to any logfile.
 	gwlogger\test>node FuncTestCon_01.js	
 
- 6. FuncTest_02.js, logs identically to console and file (including timestamps). Tests are:
+ 7. FuncTest_02.js, logs identically to console and file (including timestamps). Tests are:
 		1. Only fatal message will log.
 		2. Fatal and error messages log.
 		3. Add warn message.
@@ -69,7 +99,7 @@
 		5-9. Add info, dev, debug, trace, and all 
 	gwlogger\test>node FuncTest_02.js	
 	
- 7. FuncTest_03.js, covers timestamp customizations, setModuleName, and separation characters.
+ 8. FuncTest_03.js, covers timestamp customizations, setModuleName, and separation characters.
 	Logged lines in output are numbered for reference in problems.
 		1. Message only needs to appear
 		2. Version number of GwLogger, needs only to appear.
@@ -91,14 +121,20 @@
 		18. Simply must log at TRACE loglevel.
 	gwlogger\test>node FuncTest_03.js	
 		
- 8.	FuncTest_04.js, helps test formatted output, 
+ 9.	FuncTest_04.js, helps test formatted output, 
 	such as log.info("the meaning of life is: ", {meaningOfLife: {love: true, health: 8, money: 5} } );		
 	gwlogger\test>node FuncTest_04.js	
+
 	
+ 10.EnduroGwLogger.js, Not a unit or functional test, more a stress test, intended for running long periods 
+	to look for memory leaks or problems logging to slower drives, or to LAN drives. Uses back-pressure 
+	indicator to keep logging near maximum rate for long periods with rolling logfiles. Currently uses
+	500,000 iterations for a complete run, which may take a few hours to overnight depending on the
+	speed of the test machine and its logging drive(s). To run a shorter version, change the variable
+	'nIterations' which is set with one of the last statements near the bottom of the file.
+	gwlogger\test>node EnduroGwLogger.js
 	
- 9. TestPerfBlitz -- Not a unit or functional test, not really a performance test either. It spews out a lot of
-	logging statements. This is an observation of the writestream backpressure. It may be more fully developed. 
-	Very quick and dirty tight logging loop over several loggers.
+
 	
 	
 	
