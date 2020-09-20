@@ -131,7 +131,8 @@
 	indicator to keep logging near maximum rate for long periods with rolling logfiles. Currently uses
 	500,000 iterations for a complete run, which may take a few hours to overnight depending on the
 	speed of the test machine and its logging drive(s). To run a shorter version, change the variable
-	'nIterations' which is set with one of the last statements near the bottom of the file.
+	'nIterations' which is set with one of the last statements near the bottom of the file. This replaces
+	the previous TestPerfBlitz.js.
 	gwlogger\test>node EnduroGwLogger.js
 	
 
