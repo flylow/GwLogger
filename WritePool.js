@@ -324,8 +324,11 @@ class WritePool {
 		let ws;
 		let watcher;
 		let ucFn = this.getUcFn(fn);
-		// Make sure the file exists now, or the lazy stream create process may not beat other dependencies (watcher)
+		let isQ = logFiles[ucFn].isQueuing;
+		let isR = logFiles[ucFn].isRolling;
 		this.logFileInit(fn, ucFn);	
+		logFiles[ucFn].isQueuing = isQ; 
+		logFiles[ucFn].isRolling = isR;	
 		try {
 			ws = createWriteStream(fn, {flags: "a", autoclose: true, emitClose: true});
 			ws.on("error", (err) => {
@@ -397,6 +400,8 @@ class WritePool {
 			this.setIsRollBySize(ucFn, isRollBySize); // must go last, after othr roll-by-size settings			
 		}
 		if (isRollBySize && this.getNeedToRollSize(null, ucFn)) { // stream doesn't exist yet, but file might, see if it needs rolled
+			logFiles[ucFn].isRolling = true;
+			logFiles[ucFn].isQueuing = true;		
 			return this.rollFiles(ucFn); // perform rolling of logfiles
 		} else {
 			return this.getRegisteredStream(fn, replace);

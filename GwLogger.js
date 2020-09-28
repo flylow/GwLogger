@@ -15,7 +15,7 @@ const writePool = require("./WritePool.js");
 const { ProfileClass } = require("./Profiles"); 
 const inspect = require("util").inspect; 
 let profiles;
-const version = "1.1.0";
+const version = "1.1.1";
 
 
 class GwLogger {

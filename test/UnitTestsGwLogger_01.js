@@ -20,7 +20,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.1.0"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.1.1"; // set to target version of GwLogger for test of getVersion method.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.notice("-----------------------------  Unit Testing Begins -----------------------------------------------");

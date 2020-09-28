@@ -306,7 +306,7 @@ class Profiles {
 		rollingLogPath = (profileCandidate.rollingLogPath) ? path.resolve(profileCandidate.rollingLogPath) : null;
 		if ((isRollBySize || rollingLogPath) && (!this.isValidStr(rollingLogPath) || !existsSync(rollingLogPath)) ) { // || this.fnPath === rollingLogPath)) {
 			let stack = this.getStackTrace(new Error());			
-			console.error("\x1b[31m%s\x1b[0m", "ERROR: Rolling logs requires an existing log file directory, different from the active logfile's directory.\n",stack);
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Rolling logs requires an existing log file directory.\n",stack);
 			process.exit(1); // All stop			
 		}
 		if (maxLogSizeKb === 0 || maxNumRollingLogs === 0) {

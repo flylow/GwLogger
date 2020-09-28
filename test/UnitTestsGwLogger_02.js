@@ -32,7 +32,7 @@ try {
 	throw err;
 }
 
-const versionRef = "1.1.0"; // version number of targeted GwLogger.
+const versionRef = "1.1.1"; // version number of targeted GwLogger.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
