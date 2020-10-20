@@ -42,7 +42,7 @@ class GwLogger {
 			this.logLevelStr = this.logLevelStr.trim().toUpperCase();
 		}
 		if (!this.profile.isValidStr(this.logLevelStr) 
-			 || this.logLevels.findIndex(level => level === this.logLevelStr)<0) {
+				|| this.logLevels.findIndex(level => level === this.logLevelStr)<0) {
 			if (this.logLevelStr) { // typo or such. Post an error message.
 				let stack = this.profile.getStackTrace(new Error());			
 				console.error("\x1b[31m%s\x1b[0m", "ERROR: Log level "
@@ -53,10 +53,8 @@ class GwLogger {
 					+ this.activeProfile.logLevelStr + " and try to continue.<<");
 			}
 			this.logLevelStr = this.activeProfile.logLevelStr;
-			this.logLevel = this.logLevels.findIndex
-				(level => level === this.logLevelStr);
-		} else this.logLevel = this.logLevels.findIndex
-			(level => level === this.logLevelStr);
+			this.logLevel = this.logLevels.findIndex(level => level === this.logLevelStr);
+		} else this.logLevel = this.logLevels.findIndex(level => level === this.logLevelStr);
 
 		this.moduleName = ""; // short name/description of source file
 		this.timeStampFormat = {};
@@ -320,7 +318,7 @@ class GwLogger {
 	setIsRollAtStartup(b) {
 		return this.profile.setIsRollAtStartup(b);
 	}	
-	getIsRollAtStartup(ucFn) {
+	getIsRollAtStartup() {
 		return this.profile.getIsRollAtStartup();
 	}
 		

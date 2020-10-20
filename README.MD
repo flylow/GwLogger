@@ -114,7 +114,7 @@ By default at startup, each instance of GwLogger checks for environment variable
   }
 ```
  		
-If found, all instances of GwLogger for your application will use the GwLogger.json you profile you created to override built-in default values, unless a different profile is specified or environment variables are found. 
+If found, all instances of GwLogger for your application will use the GwLogger.json profile you created to override built-in default values, unless a different profile is specified or environment variables are found. 
   
 If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each one should be preceded by "GWL_" so that GwLogger can find them. Such as:
 ```shell

@@ -1,7 +1,7 @@
 "use strict";
 
 // A directive for exceptions to ESLint no-init rule
-/*global console, exports, require */ 
+/*global exports, require */ 
 
 /*
  * On the local file system, one can move a file with fs.rename, but if the file
@@ -22,14 +22,13 @@ const accessProm = promisify(fs.access);
 const version = "1.2.0";
 
 const accessFile = async function(path, mode=fs.constants.F_OK) {
-	let results;
 	try {
 		await accessProm(path, mode);
 		return true;
 	} catch(err) {
 		return false;
 	}
-}
+};
 
 const truncFile = async function(path, keep=0) {
 	try {
@@ -37,7 +36,7 @@ const truncFile = async function(path, keep=0) {
 	} catch(err) {
 		throw(err);
 	}
-}
+};
 
 const renameFile = async function(path, newPath) {
 	try {
@@ -49,11 +48,7 @@ const renameFile = async function(path, newPath) {
 
 const copyFile = async function (path, newPath, flags) {
 	const readStream = createReadStream(path);
-			readStream.on("open", (fd) => {
-			});	
 	const writeStream = createWriteStream(newPath, {flags});
-			writeStream.on("open", (fd) => {
-			});	
 	await new Promise(resolve => 	
 		readStream.pipe(writeStream).on("finish", resolve));
 };

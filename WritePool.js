@@ -289,7 +289,7 @@ class WritePool {
 	
 	// Perform logfile roll
 	async rollFiles(ucFn, ws, fn) {	
-		let oldFname = "", nuFname = "";
+		let nuFname = "";
 		const rollingLogPath = logFiles[ucFn].rollingLogPath;
 		const fnPath = path.parse(fn);
 		let typeOfMove;
@@ -492,7 +492,7 @@ class WritePool {
 				// but if rolling logs are turned on, a new logfile would be 
 				// created on next roll file.
 				// The watch method returns an fs.FSWatcher object.
-				watcher = watch(fn, {persistent: false}, (eventType, filename) => {
+				watcher = watch(fn, {persistent: false}, () => {
 					let exists = existsSync(fn);
 					ucFn = this.getUcFn(fn);
 					if (!exists && !logFiles[ucFn].isRolling 

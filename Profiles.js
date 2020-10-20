@@ -162,7 +162,6 @@ class Profiles {
 	}
 	
 	newProfileWriteStream(fn) {
-		let activeProfile = this.getActiveProfile();
 		try {
 			if (!fn || !(this.fnPath = this.checkPath(fn))) {
 				let stack = this.getStackTrace(new Error());			
