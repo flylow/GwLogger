@@ -157,15 +157,18 @@ Three parameters must be defined to use rolling logs at startup:
 Note that the rollingLogPath must point to a directory that already exists. Naming rules will follow the same pattern as described in the previous section.
 
 The three parameters are usually defined either in your JSON profile or the environment variables prior to starting your application. You can use both roll by size and roll at startup together.
+<a name="cheatRollAtStart"></a>
+##### RollAtStart via the API
+Although this feature is probably best set either by an environment variable by a json profile, it is possible to enable it via the API. If, at startup, logLevel is set to OFF or the isFile parameter is set to false, rolling will be delayed until those parameters are changed via the API and logging to file actually commences. For instance:
 
-Although this feature is probably best set either by an environment variable or in the json profile, it is possible to enable it via the API. If, at startup, logLevel is set to OFF or the isFile parameter is set to false, rolling will be delayed until those parameters are changed via the API and logging to file actually commences. For instance:
-`
+```javascript
 const logger = new GwLogger("OFF", false, true, "./logfiles/mylogfile.log");
 logger.setMaxNumRollingLogs(5);
 logger.setRollingLogPath("./rolledfiles");
 logger.setIsRollAtStartup(true);
 logger.setLogLevel("debug"); // This change will cause logfile to roll.
-`
+
+```
 
 ### Log Levels 
 A note about GwLogger log levels: The default is OFF, but log levels can be specified at almost any time, either with the GwLogger.json profile, environment variables, at assignment time as with log = new GwLogger(\"debug\"), or at run time with log.setLogLevel(\"info\"). As with other loggers, logging will occur for any log statement at, or higher, than the currently set log level. Here are the log levels supported by GwLogger:
@@ -221,11 +224,11 @@ The API contains a list of public methods for each logger accessed as in the ear
 |getMaxLogSizeKb(); |Returns a number |
 |*setIsRollBySize(b); |If b=true, will attempt to turn on rolling logs. Must be the last setting for roll files, because other roll setting changes via the API will automatically set this to false. Environment variable: \"GWL_isRollBySize=\"\<boolean>|
 |getIsRollBySize(); |Return boolean true/false. |
-|*setIsRollBySize(b); |  This variable is best set either by an environment variable ("GWL_isRollAtStartup=\"\<boolean>) or in the json profile. However, if a GwLogger is created at DEBUG level and/or with isFile=false, then setIsRollBySize(true) can be used to perform the roll when the loglevel and isFile settings are subsequently changed. |
+|*setIsRollBySize(b); |  This variable is best set either by an environment variable ("GWL_isRollAtStartup=\"\<boolean>) or in the json profile. However, if a GwLogger is created at OFF level and/or with isFile=false, then setIsRollBySize can be used. See the section "[Rolling Logs at Startup](#cheatRollAtStart "Rolling Logs at Startup")".  |
 |getIsRollAtStartup(); |Return boolean true/false. |
 
-Of course, most log statement levels are class methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
-log.`<level>`(`<data to log>`). You may also comma-separated data items:
+Of course, most log levels (except off and all) are API methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
+log.`<level>`(`<data to log>`). You may also comma-separate data items:
 `log.dev("Value of object vehicle is: ", vehicle);`
 
 ### Developer and Tester Notes ###
