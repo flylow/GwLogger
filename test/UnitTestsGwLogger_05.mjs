@@ -8,11 +8,22 @@ const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
 
-const versionRef = "1.1.1"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.2.0"; // set to target version of GwLogger for test of getVersion method.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_05");
 tlog.notice("===> UnitTestsGwLogger_05.mjs is running, logfile is: ./logfiles/Unit Test Results.log");
+
+// Startup API test
+const logger = new GwLogger("DEBUG", false, false, "./logfiles/Profile Param Test Log.log");
+logger.setIsRollBySize(false);
+logger.setMaxNumRollingLogs(5);
+logger.setRollingLogPath("./rolledfiles");
+logger.setIsRollAtStartup(true);
+//console.log("isRollAtStartup is: ", logger.getIsRollAtStartup());
+//logger.setLogLevel("debug");
+logger.setIsFile(true);
+// did it roll the logfile?
 	
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted

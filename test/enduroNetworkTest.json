@@ -1,5 +1,5 @@
 {
-	"fn": "./logfiles/Profile Param Test Log.log",
+	"fn": "\\\\Epsonb87c8a\\memorycard\\sharedStuff\\logfiles\\happy.log",
 	"logLevelStr": "debug",
 	"isFile": true,
 	"isConsole": false,
@@ -10,7 +10,7 @@
 	"isShowMs": true,
 	"isRollAtStartup": true,
 	"isRollBySize": true,
-	"maxLogSizeKb": 20, 
-	"maxNumRollingLogs": 9, 
-	"rollingLogPath": "./rolledfiles"
-}	
+	"maxLogSizeKb": 50, 
+	"maxNumRollingLogs": 10, 
+	"rollingLogPath": "\\\\Epsonb87c8a\\memorycard\\sharedStuff\\logfiles\\rolledLogs"
+}

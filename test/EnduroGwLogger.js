@@ -7,7 +7,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.1.1"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.2.0"; // set to target version of GwLogger for test of getVersion method.
 const showStackTrace = true;
 
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
@@ -36,21 +36,18 @@ const test_getVersion = function() {
 //let isPath = log2.setRollingLogPath("D:\\rolledfiles\\rolledfiles2");
 
 // log to my printer's very slow thumb drive (slowest)
-//const log2 = new GwLogger("debug", false, true, "\\\\Epsonb87c8a\\memorycard\\sharedStuff\\logfiles\\happy.log");
+//const log2 = new GwLogger("off", false, true, "\\\\Epsonb87c8a\\memorycard\\sharedStuff\\logfiles\\happy.log");
 //let isPath = log2.setRollingLogPath("\\\\Epsonb87c8a\\memorycard\\sharedStuff\\logfiles\\rolledLogs");
 
 // log to my ssd, very fast
-const log2 = new GwLogger("debug", false, true, "./logfiles/happy.log");
-let isPath = log2.setRollingLogPath("./rolledfiles");
+//const log2 = new GwLogger( { profileFn: "./GwLogger_Profile Param Test Log.json" } ); // "debug", false, true, "./logfiles/happy.log");
+//let isPath = log2.setRollingLogPath("./rolledfiles");
 
-if (!isPath) {
-	console.error("Path does not exist");
-	throw("Cannot continue, rolling log path does not exist");
-}
+let log2 = new GwLogger({ profileFn: "./enduroLocalTest.json" });
+//let log2 = new GwLogger({ profileFn: "./enduroNetworkTest.json" });
+
 tlog.setLogLevel("notice");
-log2.setMaxLogSizeKb(1000);
-log2.setMaxNumRollingLogs(20);
-log2.setIsRollBySize(true); // must be last setting change :)
+
 
 
 let n = 500, test_enduro_pass = true, nDelays = 0, delay = 0;
@@ -68,12 +65,12 @@ const primeBlitz = () => {
 	console.log("Done with primeBlitz, buffer size is: ", log2.getWritableLengthKb(), ", isQueuing is: ", log2.getIsQueuing()+", IsRolling: "+log2.getIsRolling());
 	
 };
-
+log2.setIsRollBySize(true);
 // Longer-running test near top-speed, check for memory leaks.
 const test_enduro = function(n, iters) {
 	let result = "";
 	if (n < iters && test_enduro_pass) {
-		if (n % 50000 === 0) {
+		if (n % 5000 === 0) {
 			try {
 				heapInfo = v8.getHeapStatistics();
 				if (heapInfo.number_of_detached_contexts > 0) {

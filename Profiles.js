@@ -16,6 +16,7 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
+const version = "1.2.0";
 
 class Profiles {
 
@@ -27,7 +28,6 @@ class Profiles {
 		this.isConsoleDefault = false;
 		this.isFileDefault = true;
 		this.isRollAtStartup = false;
-		this.wasRolledAtStartup = false; // only roll the log once at startup, if requested
 		this.isRollBySize = false;
 		this.maxLogSizeKb = 0; 
 		this.maxNumRollingLogs = 0;
@@ -36,6 +36,7 @@ class Profiles {
 		this.path = process.cwd();
 		this.fnDefault = this.path + this.path_separator + "gwl_log.log";
 		this.fnPath = this.path;
+		this.ucFn = null;
 		this.profileName = (profilePath) ? profilePath : this.path + this.path_separator +  "GwLogger.json";
 		this.customStreams = {};
 		// Some init code to read profile/set active profile
@@ -107,7 +108,7 @@ class Profiles {
 	getDefaultProfile() {
 		let defJson = {logLevelStr: this.logLevelDefault, isFile: this.isFileDefault, isConsole: this.isConsoleDefault, fn: this.fnDefault, 
 			isEpoch: this.tsFormatDefaults.isEpoch,  isLocalTz: this.tsFormatDefaults.isLocalTz, nYr: this.tsFormatDefaults.nYr, 
-			isShowMs: this.tsFormatDefaults.isShowMs, isConsoleTs: this.isConsoleTsDefault, isRollBySize: this.isRollBySize, maxLogSizeKb: this.maxLogSizeKb, maxNumRollingLogs: this.maxNumRollingLogs, rollingLogPath: this.rollingLogPath};
+			isShowMs: this.tsFormatDefaults.isShowMs, isConsoleTs: this.isConsoleTsDefault, isRollAtStartup: this.isRollAtStartup, isRollBySize: this.isRollBySize, maxLogSizeKb: this.maxLogSizeKb, maxNumRollingLogs: this.maxNumRollingLogs, rollingLogPath: this.rollingLogPath};
 		return defJson;
 	}
 	
@@ -161,7 +162,7 @@ class Profiles {
 	}
 	
 	newProfileWriteStream(fn) {
-		let profile = this.getActiveProfile();
+		let activeProfile = this.getActiveProfile();
 		try {
 			if (!fn || !(this.fnPath = this.checkPath(fn))) {
 				let stack = this.getStackTrace(new Error());			
@@ -169,8 +170,7 @@ class Profiles {
 				throw("Could not find path for logfile.");		
 			}
 			// get or create a stream for this fn
-			return writePool.getStream(fn, false, profile.isRollBySize, profile.maxLogSizeKb
-												, profile.maxNumRollingLogs, profile.rollingLogPath);
+			return writePool.getStream(fn, false, this.getActiveProfile());
 		} catch(err) {
 			throw("Unlikely logfile path or other issue while creating a new profile file stream in GwLogger.\n" + err);			
 		}		
@@ -183,7 +183,7 @@ class Profiles {
 				console.error("\x1b[31m%s\x1b[0m", "ERROR: Could not find path for logfile: ", fn, "\n",stack);
 				throw("Could not find path for logfile.");		
 			}
-			return writePool.getStream(fn); // gets or creates a stream for this fn
+			return writePool.getStream(fn, false, this.getActiveProfile());			
 		} catch(err) {
 			throw("Unlikely logfile path or other issue while creating a new logging file stream in GwLogger.\n" + err);			
 		}		
@@ -206,11 +206,11 @@ class Profiles {
 		this.activeProfile = p;
 	}
 		
-	storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath) {
+	storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs, isRollAtStartup, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath) {
 		// Will overwrite existing profile data, if any
 		this.activeProfile = {fn: fn, logLevelStr: logLevelStr, 
 			isFile: isFile, isConsole: isConsole, isEpoch: isEpoch, isLocalTz: isLocalTz, nYr: nYr,
-			isShowMs: isShowMs, isConsoleTs: isConsoleTs, isRollBySize: isRollBySize, maxLogSizeKb: maxLogSizeKb, 
+			isShowMs: isShowMs, isConsoleTs: isConsoleTs, isRollAtStartup: isRollAtStartup, isRollBySize: isRollBySize, maxLogSizeKb: maxLogSizeKb, 
 			maxNumRollingLogs: maxNumRollingLogs, rollingLogPath: rollingLogPath};
 		return;
 	}	
@@ -241,6 +241,7 @@ class Profiles {
 			process.exit(1); // All stop			
 		}
 		fn = fn.trim();
+		this.ucFn = writePool.getUcFn(fn);
 		let isFile = profileCandidate.isFile;
 		if (typeof isFile !== "boolean") {
 			let err = new Error();
@@ -283,6 +284,13 @@ class Profiles {
 			console.error("\x1b[31m%s\x1b[0m", "ERROR: Profile isConsoleTs must be true or false\n",err.stack);
 			process.exit(1); // All stop
 		}
+		
+		let isRollAtStartup = profileCandidate.isRollAtStartup;
+		if (typeof isRollAtStartup !== "boolean") {
+			let err = new Error();
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Profile isRollAtStartup must be true or false\n",err.stack);
+			process.exit(1); // All stop
+		}		
 
 		let isRollBySize = profileCandidate.isRollBySize;
 		if (typeof isRollBySize !== "boolean") {
@@ -304,9 +312,9 @@ class Profiles {
 		}
 		let rollingLogPath;
 		rollingLogPath = (profileCandidate.rollingLogPath) ? path.resolve(profileCandidate.rollingLogPath) : null;
-		if ((isRollBySize || rollingLogPath) && (!this.isValidStr(rollingLogPath) || !existsSync(rollingLogPath)) ) { // || this.fnPath === rollingLogPath)) {
+		if ((isRollAtStartup || isRollBySize || rollingLogPath) && (!this.isValidStr(rollingLogPath) || !existsSync(rollingLogPath)) ) { 
 			let stack = this.getStackTrace(new Error());			
-			console.error("\x1b[31m%s\x1b[0m", "ERROR: Rolling logs requires an existing log file directory.\n",stack);
+			console.error("\x1b[31m%s\x1b[0m", "ERROR: Rolling logs requires an existing log file directory. check ", profileCandidate.rollingLogPath, "\n",stack);
 			process.exit(1); // All stop			
 		}
 		if (maxLogSizeKb === 0 || maxNumRollingLogs === 0) {
@@ -314,10 +322,73 @@ class Profiles {
 		} 		
 		
 		if (!this.activeProfile) {
-			this.storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath );
+			this.storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr, isShowMs, isConsoleTs, isRollAtStartup, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath );
 			return;
 		}	
 	}
+	
+	// roll at Startup settings
+	setIsRollAtStartup(b) { 
+		this.activeProfile.isRollAtStartup = b;
+	}	
+	getIsRollAtStartup() {
+		return this.activeProfile.isRollAtStartup;
+	}	
+	
+	// roll by size settings
+	setIsRollBySize(b) {
+		if (typeof b !== "boolean") {
+			return null;
+		}
+		this.activeProfile.isRollBySize = b;
+		writePool.setIsRollBySize(this.ucFn, b);
+		return b;
+	}
+	getIsRollBySize() {
+		return this.activeProfile.isRollBySize;
+	}	
+	getIsRollBySizeCurrent() { //can be set internally by WritePool on an error
+		return writePool.getIsRollBySize(this.ucFn);
+	}
+	
+	setMaxLogSizeKb(kb) { // approx max of each logfile
+		if (kb < 0) { 
+			return null;
+		}
+		this.activeProfile.maxLogSizeKb = kb;		
+		writePool.setMaxLogSizeKb(this.ucFn, kb);
+		return kb;
+	}
+	getMaxLogSizeKb() {
+		return this.activeProfile.maxLogSizeKb;
+	}
+
+	setMaxNumRollingLogs(n) { // how many logfiles to keep
+		if (n > 20 || n < 0) {
+			return null;
+		}
+		this.activeProfile.maxNumRollingLogs = n;
+		writePool.setMaxNumRollingLogs(this.ucFn, n);
+		return n;
+	}	
+	getMaxNumRollingLogs() {
+		return this.activeProfile.maxNumRollingLogs;
+	}
+
+	setRollingLogPath(rollingLogPath) { // the path to store old logfiles (cannot be same as logfile)
+		rollingLogPath = rollingLogPath.trim();
+		rollingLogPath = path.resolve(rollingLogPath);
+		if (!existsSync(rollingLogPath) ) {
+			return false; // bad path
+		}
+		this.activeProfile.rollingLogPath = rollingLogPath;
+		writePool.setRollingLogPath(this.ucFn, rollingLogPath);
+		return this.activeProfile.rollingLogPath;
+	}	
+	getRollingLogPath() {
+		return this.activeProfile.rollingLogPath;
+	}
+		
 
 } // end of Profiles class
 

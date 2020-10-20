@@ -7,7 +7,8 @@ GwLogger requires Node.js, version 8.0 or greater. It does not support browser d
 |Release   |Date| Summary  |
 | ------------ | -- | ------------ |
 | 1.0.0 | 2020-08-09 | Initial Release |
-| 1.1.0 | 2020-09-21 | Add rolling logs (by size) and multiple profile support |
+| 1.1.0 | 2020-09-21 | Added rolling logs (by size) and multiple profile support |
+| 1.2.0 | 2020-10-01 | Added rolling logs (at startup) |
 
 ## Installation ##
 Install locally from your project\'s main directory into the node_modules directory via NPM:
@@ -62,7 +63,7 @@ would result in an item like this on the console:
 
 By built-in default, logging is to a file named "./gwl_log.log" in your apps current  working directory. This generally means the directory where myapp.js lives when you type \'node myapp.js\'. There are several ways to specify a different location/name for the logfile, such as using a profile file, an environment variable, or specifying the path when creating a new logger. 
 
-A new instance of GwLogger must be created inside each source file in which you want to do logging. A couple of other examples of logger initialization, the first of which logs to both console and file at the "info" log level:
+A new instance of GwLogger must be created inside each source file in which you want to do logging. Loggers in different source files can log to the same logfile, and correct sequencing will be maintained. Here are a couple of other examples of logger initialization, the first of which logs to both console and file at the "info" log level:
 
 `const log = new GwLogger("info", true, true);` // logs to console and the default log file
 `const log = new GwLogger("info", false, true, "./logger/logger.log");` // does not log to console
@@ -105,6 +106,7 @@ By default at startup, each instance of GwLogger checks for environment variable
 	"nYr": 0,
 	"isLocalTz": true,
 	"isShowMs": true,
+	"isRollAtStartup": false,
 	"isRollBySize": false,
 	"rollingLogPath": null,
 	"maxLogSizeKb": 0,
@@ -112,14 +114,16 @@ By default at startup, each instance of GwLogger checks for environment variable
   }
 ```
  		
-If found, all instances of GwLogger for your application will use this profile to override built-in default values, unless a different profile is specified or environment variables are found. 
+If found, all instances of GwLogger for your application will use the GwLogger.json you profile you created to override built-in default values, unless a different profile is specified or environment variables are found. 
   
-If you prefer (or are required by your build process) to store the profile as a group of environment variables, then each one should be preceded by "GWL_" so that GwLogger can find them. Such as:
+If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each one should be preceded by "GWL_" so that GwLogger can find them. Such as:
 ```shell
 GWL_fn=mylogfile.txt
 GWL_isConsole=true
 GWL_nYr=4
 ```
+Note that if **any** GwLogger environment variable is discovered, then json profiles will be ignored.
+
 You\'ll set these in an [operating-system-specific](https://en.wikipedia.org/wiki/Environment_variable "operating-system-specific") way, or maybe use [dotenv](https://github.com/motdotla/dotenv "dotenv").  
 Any values that are not set by the shared GwLogger.json profile, another json file you specify in the constructor, or in the environment variables will be initialy set according to the built-in defaults.
 
@@ -129,15 +133,41 @@ In any case, make certain that the directory already exists, GwLogger will creat
 
 ## Rolling Logs ##
 
-Rolling logs help you manage your logfiles. GwLogger supports rolling by logfile size. When your logfile reaches a specified size, it is copied/renamed and logging continues with an empty logfile. There are four parameters: isRollBySize, maxLogSizeKb, maxNumRollingLogs, and rollingLogPath. Note that the rollingLogPath must already exist.
+Rolling logs help you manage your logfiles. GwLogger supports rolling by logfile size and/or at application startup. 
 
-The four parameters may be defined in your JSON profiles, environment variables, or you can manipulate rolling logs via the API. The rolled logs are named with the logger\'s logfile name with "_nnn" appended, such as gwl_log_001.log, gwl_log_002.log, ..., gwl_log_nnn.log. The larger numbers will contain the older data.
+#### Rolling Logs by Size
+When your logfile reaches a specified size, it is copied/renamed and logging continues with an empty logfile. There are four parameters to define: 
+1. isRollBySize, 
+2. maxLogSizeKb, 
+3. maxNumRollingLogs, and 
+4. rollingLogPath. 
+
+Note that the rollingLogPath must point to a directory that already exists.
+
+The four parameters may be defined in your JSON profile, environment variables, or you can manipulate rolling logs by size via the API. The rolled logs are named with the logger\'s logfile name with "_nnn" appended, such as gwl_log_001.log, gwl_log_002.log, ..., gwl_log_nnn.log. The larger numbers will contain the older data.
 
 Note that all four parameters must be defined (including rollingLogPath).
 
-If you change any settings for rolling logs via the API, the isRollBySize flag will **always** be reset to false. After you complete the changes, you will need to use setRollBySize(true), as described in the API section.
+#### Rolling Logs at Startup
+Three parameters must be defined to use rolling logs at startup: 
+1. isRollAtStartup, 
+2. maxNumRollingLogs, and 
+3. rollingLogPath. 
 
-#### Log Levels 
+Note that the rollingLogPath must point to a directory that already exists. Naming rules will follow the same pattern as described in the previous section.
+
+The three parameters are usually defined either in your JSON profile or the environment variables prior to starting your application. You can use both roll by size and roll at startup together.
+
+Although this feature is probably best set either by an environment variable or in the json profile, it is possible to enable it via the API. If, at startup, logLevel is set to OFF or the isFile parameter is set to false, rolling will be delayed until those parameters are changed via the API and logging to file actually commences. For instance:
+`
+const logger = new GwLogger("OFF", false, true, "./logfiles/mylogfile.log");
+logger.setMaxNumRollingLogs(5);
+logger.setRollingLogPath("./rolledfiles");
+logger.setIsRollAtStartup(true);
+logger.setLogLevel("debug"); // This change will cause logfile to roll.
+`
+
+### Log Levels 
 A note about GwLogger log levels: The default is OFF, but log levels can be specified at almost any time, either with the GwLogger.json profile, environment variables, at assignment time as with log = new GwLogger(\"debug\"), or at run time with log.setLogLevel(\"info\"). As with other loggers, logging will occur for any log statement at, or higher, than the currently set log level. Here are the log levels supported by GwLogger:
 
 *	OFF=Does not log *Anything*. This benefits some picky build tools, and is the built-in default.
@@ -191,6 +221,8 @@ The API contains a list of public methods for each logger accessed as in the ear
 |getMaxLogSizeKb(); |Returns a number |
 |*setIsRollBySize(b); |If b=true, will attempt to turn on rolling logs. Must be the last setting for roll files, because other roll setting changes via the API will automatically set this to false. Environment variable: \"GWL_isRollBySize=\"\<boolean>|
 |getIsRollBySize(); |Return boolean true/false. |
+|*setIsRollBySize(b); |  This variable is best set either by an environment variable ("GWL_isRollAtStartup=\"\<boolean>) or in the json profile. However, if a GwLogger is created at DEBUG level and/or with isFile=false, then setIsRollBySize(true) can be used to perform the roll when the loglevel and isFile settings are subsequently changed. |
+|getIsRollAtStartup(); |Return boolean true/false. |
 
 Of course, most log statement levels are class methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
 log.`<level>`(`<data to log>`). You may also comma-separated data items:

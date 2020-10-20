@@ -1,87 +1,114 @@
 "use strict";
 /** 
  * GwLogger : A simple-to-use Node.js logger that streams to file and/or console. 
- * There are no dev dependencies for GwLogger, but if you use Eslint please use the included
- * eslintrc.json profile.
+ * There are no dev dependencies for GwLogger, but if you use Eslint please use
+ * the included eslintrc.json profile.
  *
  * For user information, see README.MD at https://github.com/flylow/GwLogger
  * MIT license.
  * --G. Wilson, 5/2020
  */
  
-/*global console, process, require, exports */ // A directive for exceptions to ESLint no-init rule
+// A directive for exceptions to ESLint no-init rule 
+/*global console, process, require, exports */ 
 
 const writePool = require("./WritePool.js");
 const { ProfileClass } = require("./Profiles"); 
 const inspect = require("util").inspect; 
-let profiles;
-const version = "1.1.1";
+//let profiles;
+const version = "1.2.0";
 
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
+		this.stateRecord = {startTime: (new Date()).toISOString()};
+		this.profile = null;
 		this.logLevelStr = undefined;
 		if (typeof param1 === "object" && param1.profileFn) {
 			isConsole = undefined;
 			isFile = undefined;
 			fn = undefined;
-			profiles = new ProfileClass(param1.profileFn);
+			this.profile = new ProfileClass(param1.profileFn);
 		} else {
 			this.logLevelStr = param1;
-			profiles = new ProfileClass();
+			this.profile = new ProfileClass();
 		}
-		this.activeProfile = profiles.getActiveProfile(); // use env vars, json, or built-ins as defaults
-		this.logLevels = ["OFF", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEV", "DEBUG", "TRACE", "ALL"];
+		// use env vars, json, or built-ins as defaults
+		this.activeProfile = this.profile.getActiveProfile();
+		this.logLevels = ["OFF", "FATAL", "ERROR", "WARN", "NOTICE", "INFO"
+			, "DEV", "DEBUG", "TRACE", "ALL"];
 		this.wsSources = {global: "global", custom: "custom"};
-		if (profiles.isValidStr(this.logLevelStr)) {
+		if (this.profile.isValidStr(this.logLevelStr)) {
 			this.logLevelStr = this.logLevelStr.trim().toUpperCase();
 		}
-		if (!profiles.isValidStr(this.logLevelStr) || this.logLevels.findIndex(level => level === this.logLevelStr) < 0) {
+		if (!this.profile.isValidStr(this.logLevelStr) 
+			 || this.logLevels.findIndex(level => level === this.logLevelStr)<0) {
 			if (this.logLevelStr) { // typo or such. Post an error message.
-				let stack = profiles.getStackTrace(new Error());			
-				console.error("\x1b[31m%s\x1b[0m", "ERROR: Log level must be one of: "  + this.logLevels.join()+"\n",stack);
-				console.error("\x1b[31m%s\x1b[0m", ">>>> But, was given log level of: " + this.logLevelStr + " <<<<"); 
-				console.error("\x1b[31m%s\x1b[0m", ">>>>After ERROR, will set to " + this.activeProfile.logLevelStr + " and try to continue.<<<<");
+				let stack = this.profile.getStackTrace(new Error());			
+				console.error("\x1b[31m%s\x1b[0m", "ERROR: Log level "
+					+ "must be one of: " + this.logLevels.join()+"\n",stack);
+				console.error("\x1b[31m%s\x1b[0m", ">>> But, found log level of: "
+					+ this.logLevelStr + " <<<"); 
+				console.error("\x1b[31m%s\x1b[0m", ">>After ERROR, will set to "
+					+ this.activeProfile.logLevelStr + " and try to continue.<<");
 			}
 			this.logLevelStr = this.activeProfile.logLevelStr;
-			this.logLevel = this.logLevels.findIndex(level => level === this.logLevelStr);
-		} else this.logLevel = this.logLevels.findIndex(level => level === this.logLevelStr);
+			this.logLevel = this.logLevels.findIndex
+				(level => level === this.logLevelStr);
+		} else this.logLevel = this.logLevels.findIndex
+			(level => level === this.logLevelStr);
 
-		this.moduleName = ""; // short name/description of module or source file doing the logging (prints to log)
+		this.moduleName = ""; // short name/description of source file
 		this.timeStampFormat = {};
-		this.timeStampFormat.isEpoch = this.activeProfile.isEpoch; // timestamps will be milliseconds since 1/1/1970 UTC
-		this.timeStampFormat.isLocalTz = this.activeProfile.isLocalTz; // use local time (if false, will use UTC)
-		this.timeStampFormat.isShowMs = this.activeProfile.isShowMs; // show the milliseconds?
-		this.timeStampFormat.nYr = this.activeProfile.nYr; // number of digits to show for the year in timestamps 0-4
-		this.sepCharFile = " "; // separator between parts of logged message. Can be a comma to assist DB storage/migration of logs.
-		this.sepCharConsole = " "; // separator between parts of logged message to be fair to console.	
+		this.timeStampFormat.isEpoch = this.activeProfile.isEpoch;// TS in MS
+		this.timeStampFormat.isLocalTz = this.activeProfile.isLocalTz;
+		this.timeStampFormat.isShowMs = this.activeProfile.isShowMs; // log MS
+		this.timeStampFormat.nYr = this.activeProfile.nYr; // 0-4 yr digits
+		this.sepCharFile = " "; // separator between parts of logfile messages.
+		this.sepCharConsole = " "; // separator between parts of console msgs.
 		this.depthNum = 2;
 		this.isColor = true;
 		this.isConsoleTs = this.activeProfile.isConsoleTs;
 		
-		this.isConsole = isConsole === undefined ? this.activeProfile.isConsole : isConsole;
-		this.isFile = (isFile === undefined) ? this.activeProfile.isFile : isFile;
-		this.fn = profiles.isValidStr(fn) ? fn.trim() : null;
-		this.ucFn = this.fn ? writePool.getUcFn(this.fn) : null; //this.fn.replace(/\s+/g, "").toUpperCase() : null;
-		
+		this.isConsole = isConsole === undefined 
+			? this.activeProfile.isConsole 
+			: isConsole;
+		this.isFile = (isFile === undefined) 
+			? this.activeProfile.isFile 
+			: isFile;
+		this.fn = this.profile.isValidStr(fn) 
+			? fn.trim() 
+			: null;
+		this.ucFn = this.fn 
+			? writePool.getUcFn(this.fn) 
+			: null;	
 		this.wsSource = (this.fn) 
 			? this.wsSources.custom 
 			: this.wsSources.global;
-		if (this.wsSource === this.wsSources.global && this.activeProfile.fn 
+			
+		this.stateRecord.wsSource = this.wsSource;
+		this.stateRecord.initialActiveProfile = this.activeProfile;
+		
+		if (this.wsSource === this.wsSources.global && this.activeProfile.fn
 				&& this.logLevel > 0 && this.isFile) {
 			this.fn = this.activeProfile.fn;
 			try {
 				this.ensureWriteStream();
 			} catch(err) {
-				console.error("ERROR in GwLogger creating initial logfile for: ",this.fn,"\n", err);				
+				console.error("ERROR in GwLogger creating initial "
+					+ "logfile for: ",this.fn,"\n", err);				
 				process.exit(1); // All stop 
 			}
 		}
-		if (this.wsSource === this.wsSources.custom && this.fn && this.logLevel > 0 && this.isFile) {
+		if (this.wsSource === this.wsSources.custom 
+				&& this.fn 
+				&& this.logLevel > 0 
+				&& this.isFile) {
 			try {
 				this.ensureWriteStream();
 			} catch(err) {
-				console.error("ERROR in GwLogger creating custom logfile for: ",this.fn,"\n", err);
+				console.error("ERROR in GwLogger creating custom "
+					+ "logfile for: ",this.fn,"\n", err);
 				process.exit(1); // All stop
 			}
 		} 		
@@ -89,7 +116,7 @@ class GwLogger {
 	
 	// Test Instrumentation
 	getProfilesInstance() {
-		return profiles;
+		return this.profile;
 	}
 	
 	setModuleName(mn) {		
@@ -109,47 +136,67 @@ class GwLogger {
 	}
 
 	static getTimeStamp(tsFormat) {
-		if (tsFormat.isEpoch) return Date.now(); //UNIX Epoch in milliseconds since 1/1/1970 UTC
+		if (tsFormat.isEpoch) return Date.now(); //UNIX Epoch
 		
 		let currentTime = new Date();
-		if (tsFormat.year === 4 && tsFormat.isShowMs) { //2020-07-10T20:56:33.291Z (24 chars)
+		if (tsFormat.year === 4 && tsFormat.isShowMs) {
+			//2020-07-10T20:56:33.291Z (24 chars)
 			return currentTime.toISOString();
 		}
 		
 		const padZero = "0";	
-		let yr = tsFormat.isLocalTz ? (currentTime.getFullYear()).toString() : (currentTime.getUTCFullYear()).toString();
+		let yr = tsFormat.isLocalTz 
+			? (currentTime.getFullYear()).toString() 
+			: (currentTime.getUTCFullYear()).toString();
 		
-		let month = tsFormat.isLocalTz ? (currentTime.getMonth() + 1).toString() : (currentTime.getUTCMonth() + 1).toString();
+		let month = tsFormat.isLocalTz 
+			? (currentTime.getMonth() + 1).toString() 
+			: (currentTime.getUTCMonth() + 1).toString();
 		month = month.padStart(2, padZero);
 
-		let dayOfMonth = tsFormat.isLocalTz ? currentTime.getDate().toString() : currentTime.getUTCDate().toString();
+		let dayOfMonth = tsFormat.isLocalTz 
+			? currentTime.getDate().toString() 
+			: currentTime.getUTCDate().toString();
 		dayOfMonth = dayOfMonth.toString().padStart(2, padZero);
 
-		let hours = tsFormat.isLocalTz ? currentTime.getHours().toString() : currentTime.getUTCHours().toString();
+		let hours = tsFormat.isLocalTz 
+			? currentTime.getHours().toString() 
+			: currentTime.getUTCHours().toString();
 		hours = hours.padStart(2, padZero); 
 		
-		let minutes = tsFormat.isLocalTz ? currentTime.getMinutes().toString() : currentTime.getUTCMinutes().toString();
+		let minutes = tsFormat.isLocalTz 
+			? currentTime.getMinutes().toString() 
+			: currentTime.getUTCMinutes().toString();
 		minutes = minutes.padStart(2, padZero);
 		
-		let seconds = tsFormat.isLocalTz ? currentTime.getSeconds().toString() : currentTime.getUTCSeconds().toString();
+		let seconds = tsFormat.isLocalTz 
+			? currentTime.getSeconds().toString() 
+			: currentTime.getUTCSeconds().toString();
 		seconds = seconds.padStart(2, padZero);
 		
-		let ms = tsFormat.isLocalTz ? currentTime.getMilliseconds().toString() : currentTime.getUTCMilliseconds().toString();
+		let ms = tsFormat.isLocalTz 
+			? currentTime.getMilliseconds().toString() 
+			: currentTime.getUTCMilliseconds().toString();
 		ms = ms.padStart(3, padZero);
 
 		if (tsFormat.nYr === 0) yr = ""; // omit year
-		else if (tsFormat.nYr < 4) yr = yr.substring(4 - tsFormat.nYr) + "-";
-		else yr = yr + "-"; // 4 digit
+			else if (tsFormat.nYr < 4) yr = yr.substring(4 - tsFormat.nYr) + "-";
+			else yr = yr + "-"; // 4 digit
 		
-		ms = tsFormat.isShowMs ? ":" + ms : "";
+		ms = tsFormat.isShowMs 
+			? ":" + ms 
+			: "";
 		
-		let tz = tsFormat.isLocalTz ? "" : "z";
+		let tz = tsFormat.isLocalTz 
+			? "" 
+			: "z";
 		
-		return (yr + month + "-" + dayOfMonth + "T" + hours + ":" + minutes + ":" + seconds + ms + tz); 
+		return (yr + month + "-" + dayOfMonth + "T" + hours 
+			+ ":" + minutes + ":" + seconds + ms + tz); 
 	}
 	
 	getActiveProfile() {
-		return profiles.getActiveProfile();
+		return this.profile.getActiveProfile();
 	}
 
 	setIsEpoch(b) {
@@ -269,38 +316,49 @@ class GwLogger {
 	getFn() {
 		return this.fn || this.getActiveProfile().fn;
 	}
-	
+
+	setIsRollAtStartup(b) {
+		return this.profile.setIsRollAtStartup(b);
+	}	
+	getIsRollAtStartup(ucFn) {
+		return this.profile.getIsRollAtStartup();
+	}
+		
 	// roll by size settings
 	setIsRollBySize(b) {
-		writePool.setIsRollBySize(this.ucFn, b);
+		return this.profile.setIsRollBySize(b);
 	}
 	getIsRollBySize() {
+		return this.profile.getIsRollBySize();
+	}
+	//can be set internally by WritePool on an error and differ from profile
+	getIsRollBySizeCurrent() { 
 		return writePool.getIsRollBySize(this.ucFn);
-	}	
+	}
 	
 	setMaxLogSizeKb(kb) { // approx max of each logfile
-		writePool.setMaxLogSizeKb(this.ucFn, kb);
+		return this.profile.setMaxLogSizeKb(kb);
 	}
 	getMaxLogSizeKb() {
-		return writePool.getMaxLogSizeKb(this.ucFn);
+		return this.profile.getMaxLogSizeKb();
 	}
 
 	setMaxNumRollingLogs(n) { // how many logfiles to keep
-		writePool.setMaxNumRollingLogs(this.ucFn, n);
+		return this.profile.setMaxNumRollingLogs(n);
 	}	
 	getMaxNumRollingLogs() {
-		return writePool.getMaxNumRollingLogs(this.ucFn);
+		return this.profile.getMaxNumRollingLogs();
 	}
 
-	setRollingLogPath(p) { // the path to store old logfiles (cannot be same as logfile)
-		return writePool.setRollingLogPath(this.ucFn, p);
+	setRollingLogPath(p) { // the path to store old logfiles
+		return this.profile.setRollingLogPath(p);
 	}	
 	getRollingLogPath() {
-		return writePool.getRollingLogPath(this.ucFn);
+		return this.profile.getRollingLogPath();
 	}
 
-	getWritableLengthKb() {
-		return writePool.getWritableLengthKb(this.ucFn); // Size in KB of this logfile's write buffer.
+	getWritableLengthKb() {  // Size in KB of this logfile's write buffer.
+		return writePool.getWritableLengthKb(this.ucFn);
 	}
 	
 	getIsQueuing() {
@@ -311,11 +369,17 @@ class GwLogger {
 		return writePool.getIsRolling(this.ucFn);
 	}
 	
-	// Make sure the stream registry has a stream for us
+	getStateRecord() {
+		// For internal state
+		return this.stateRecord;
+	}
+	
+	// Make sure the stream registry has a stream for us now
 	ensureWriteStream() {
+		this.stateRecord.ensureWriteStreamTime = (new Date()).toISOString();
 		if (this.wsSource === this.wsSources.custom) {
 			try {
-				profiles.newCustomWriteStream(this.getFn());
+				this.profile.newCustomWriteStream(this.getFn());
 			} catch(err) {
 				throw("Was unable to find or create a valid custom logfile");
 			}
@@ -324,24 +388,31 @@ class GwLogger {
 			// use the default filename and common writeStream
 			this.fn = this.activeProfile.fn;
 			try {
-				profiles.newProfileWriteStream(this.getFn());
+				this.profile.newProfileWriteStream(this.getFn());
 			} catch(err) {
-				throw("Was unable to find or create a valid logfile for profile.", err);
+				throw("Was unable to find or create "
+					+ "a valid logfile for profile.", err);
 			}								
 		}
-		this.ucFn = this.getFn() ? writePool.getUcFn(this.getFn()): null;		
+		this.ucFn = this.getFn() 
+			? writePool.getUcFn(this.getFn())
+			: null;
+		this.stateRecord.Ws_fn1 = this.getFn();
+		let ws = writePool.getWsStream(this.ucFn);
+		this.stateRecord.IsWs = (ws) ? true : false;
+		this.stateRecord.WsTime = (new Date()).toISOString();
+		this.stateRecord.Ws_fn2 = this.getFn();
 	}		
 	
 	formatArgs(args, isColor) {
 		let result = args.reduce((msg, arg) => {
-			if (Array.isArray(arg)) return msg + inspect(arg, false, this.depthNum, isColor);
-			switch(typeof arg) {
-				
-				case "string": return msg+arg;
-				
-				case "object":
-				return msg + "\n" + inspect(arg, false, this.depthNum, isColor);			
-				
+			if (Array.isArray(arg)) {
+				return msg + inspect(arg, false, this.depthNum, isColor);
+			}
+			switch(typeof arg) {				
+				case "string": return msg+arg;				
+				case "object": return msg + "\n" 
+					+ inspect(arg, false, this.depthNum, isColor);
 				default: return msg + String(arg);
 			}
 		},"");
@@ -349,7 +420,8 @@ class GwLogger {
 	}
 	
 	write2log(logLevelNum, logLevelStr, isColor, msg) {
-		let bufferOk = true; // will be set later by "backpressure" indicator from writeStream.write (if also logging to file)
+		// bufferOk is similar to (sometimes same) as node's stream backpressure.
+		let bufferOk = true; 
 		let t;
 		if (!isColor) {
 			if (Array.isArray(msg)) t = this.formatArgs(msg, false);
@@ -362,31 +434,38 @@ class GwLogger {
 				else t = msg;
 			}
 			let mn = this.moduleName 
-				? logLevelStr + this.sepCharConsole + this.moduleName + ":" + this.sepCharConsole 
+				? logLevelStr + this.sepCharConsole + this.moduleName 
+					+ ":" + this.sepCharConsole 
 				: logLevelStr + ":" + this.sepCharConsole;	
 			let ts = this.isConsoleTs 
 				? timestamp
 				: "";
 			if (logLevelNum > 4) { // Not a serious problem, no color
-				console.log(ts + this.sepCharConsole + mn + t); // use OS's default color for console messages
+				// use OS's default color for console messages
+				console.log(ts + this.sepCharConsole + mn + t); 
 			} 
 			else if (logLevelNum <= 2) { // Fatal or Error, use red
-				console.log("\x1b[31m%s\x1b[0m", ts + this.sepCharConsole + mn + t); // red text
+				console.log("\x1b[31m%s\x1b[0m", ts 
+					+ this.sepCharConsole + mn + t); // red text
 			}
 			else if (logLevelNum === 3) { // Warning, use yellow
-				console.log("\x1b[33m%s\x1b[0m", ts + this.sepCharConsole + mn + t); // yellow text
+				console.log("\x1b[33m%s\x1b[0m", ts 
+					+ this.sepCharConsole + mn + t); // yellow text
 			}
 			else if (logLevelNum === 4) { // Notice, use green
-				console.log("\x1b[32m%s\x1b[0m", ts + this.sepCharConsole + mn + t); // green text
+				console.log("\x1b[32m%s\x1b[0m", ts + this.sepCharConsole 
+					+ mn + t); // green text
 			}			
 		}		
 		if (this.isFile) {
-			if (isColor) { // if was false, this can use same formatting (t) as console
-				if (Array.isArray(msg)) t = this.formatArgs(msg, false); // no color for logfile
+			if (isColor) { // if false, this can use same formatting as console
+				if (Array.isArray(msg)) 
+						t = this.formatArgs(msg, false); // no color
 				else t = msg;
 			}
 			let txt = this.moduleName 
-				? timestamp + this.sepCharFile + logLevelStr+" " + this.moduleName + ": " + t 
+				? timestamp + this.sepCharFile + logLevelStr+" " 
+					+ this.moduleName + ": " + t 
 				: timestamp + this.sepCharFile + logLevelStr+": " + t;
 			try {
 				bufferOk = writePool.write(this.ucFn, txt+"\n");
@@ -398,7 +477,8 @@ class GwLogger {
 		return bufferOk;
 	}
 	
-	// Note that color formatting for body of message is set 'false' for messages with own color scheme.
+	// color formatting for body of message is set 'false' for messages with
+	// their own color scheme.
 	fatal(...args) {
 		if (this.logLevel>0) {
 			return this.write2log(1, this.logLevels[1], false, args);

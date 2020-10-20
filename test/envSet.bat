@@ -8,6 +8,7 @@ SET GWL_nYr=1
 SET GWL_isShowMs=false
 SET GWL_isLocalTz=false
 SET GWL_isConsoleTs=true
+SET GWL_isRollAtStartup=true
 SET GWL_isRollBySize=false
 SET GWL_maxLogSizeKb=0
 SET GWL_maxNumRollingLogs=0

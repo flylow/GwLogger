@@ -1,12 +1,12 @@
 
- -- Test descriptions for GwLogger --
+ -- Test descriptions for GwLogger Version 1.2.x --
  
  Unit and Functional tests are not included with the npm package, but can be 
  retrieved from the github repository.
 
  The Node.js "assert" package is used, and no dependencies are necessary to test. 
  Zero dependencies was a goal of gwlogger, but has led to some platform-specific tests. 
- Development is in Windows right now, so there are simple bat files that runs 
+ Development is in Windows right now, so there are simple bat files that run 
  the tests with help from envSet.bat and envUnset.bat. However, it is not that hard to
  run tests manually.
  
@@ -20,14 +20,16 @@
  for UnitTestsGwLogger_03.js. It is also possible to do same from NPM or terminal command, 
  but those too are OS-specific. 
 
- Any test can be executed independently, except for UnitTestsGwLogger_03 which requires
- prep work to set up environment variables (see support files envSet.bat and envUnset.bat).
+ Most tests can be executed independently, however UnitTestsGwLogger_03 requires
+ prep work to set up environment variables (see support files envSet.bat and envUnset.bat),
+ and UnitTestsGwLogger_02 should run sometime before UnitTestsGwLogger_04 to ensure a 
+ certain logfile exists for UnitTestsGwLogger_04 to roll at startup.
  
  The Unit Tests can be executed with UTRunner.bat if on Windows and inside the gwlogger/test directory.
  Progress and results can be found in ./logfiles/Unit Test Results.log. Each Unit Test provides a 
  summary of number of tests attempted and number passed after its execution.
  
- 1. UnitTestsGwLogger_01.js, covers these core test cases (mostly sets, then checks that getters will match):
+ 1. UnitTestsGwLogger_01.js, covers these core test cases (sets, then checks that getters will match):
 		test_getVersion();
 		test_setIsEpoch();
 		test_setIsShowMs();
@@ -61,7 +63,7 @@
 		gwlogger\test>node UnitTestsGwLogger_03.js	
 	gwlogger\test>envUnset
 		
- 4. UnitTestsGwLogger_04.js,  test rolling logfiles by size.
+ 4. UnitTestsGwLogger_04.js,  test rolling logfiles at startup and by size.
 		test_getVersion();
 		test_maxLogSize();
 		test_maxNumRollingLogs();

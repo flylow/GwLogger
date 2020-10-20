@@ -1,5 +1,5 @@
 {
-	"fn": "./logfiles/Profile Param Test Log.log",
+	"fn": "./logfiles/happy.log",
 	"logLevelStr": "debug",
 	"isFile": true,
 	"isConsole": false,
@@ -10,7 +10,7 @@
 	"isShowMs": true,
 	"isRollAtStartup": true,
 	"isRollBySize": true,
-	"maxLogSizeKb": 20, 
-	"maxNumRollingLogs": 9, 
-	"rollingLogPath": "./rolledfiles"
-}	
+	"maxLogSizeKb": 200, 
+	"maxNumRollingLogs": 20, 
+	"rollingLogPath": "./rolledFiles"
+}

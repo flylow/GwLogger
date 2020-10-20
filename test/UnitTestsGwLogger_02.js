@@ -1,18 +1,6 @@
 "use strict";
 /*global console, process, require */ // A directive for exceptions to ESLint no-init rule
 
-/*
-// ------------   If using import (file must be renamed .mjs) -----------------
-import sa from "assert";
-import gwl from "../GwLogger.js";
-import profiles from "../Profiles.js";
-
-const assert = sa.strict;
-const GwLogger = gwl.GwLogger;
-// -- end of import section
-*/
-
-// ------------   If using require -----------------
 const GwLogger = require("../GwLogger").GwLogger;
 const existsSync = require("fs").existsSync;
 const unlinkSync = require("fs").unlinkSync;
@@ -32,7 +20,7 @@ try {
 	throw err;
 }
 
-const versionRef = "1.1.1"; // version number of targeted GwLogger.
+const versionRef = "1.2.0"; // version number of targeted GwLogger.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
@@ -79,6 +67,9 @@ const test_creationStories = function() {
 	loggerTest1.info("Hello from UnitTestsGwLogger_02, test_creationStories");
 	isLogExists = existsSync(fn);
 	assert.ok(isLogExists);
+	let log4UT_04 = new GwLogger( { profileFn: "./GwLogger_Profile Param Test Log.json" } );
+	log4UT_04.setModuleName("UT_02");	
+	log4UT_04.notice("log4UT_04 is created now to meet a dependency for a later test, UT_04's isRollAtStartup");
 	nPassed++;
 	tlog.info("test_creationStories Passed!");
 	} catch(err) {
@@ -98,6 +89,7 @@ let jsonDefTest2 = {
 	"nYr": 0,
 	"isLocalTz": true,
 	"isShowMs": true,
+	"isRollAtStartup": false,
 	"isRollBySize": true,
 	"maxLogSizeKb": 20, 
 	"maxNumRollingLogs": 9, 
