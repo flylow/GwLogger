@@ -1,7 +1,7 @@
 "use strict";
 
 // A directive for exceptions to ESLint no-init rule
-/*global exports, require */ 
+/*global exports, console, require */ 
 
 /*
  * On the local file system, one can move a file with fs.rename, but if the file
@@ -19,8 +19,12 @@ const renameProm = promisify(fs.rename);
 const unlinkProm = promisify(fs.unlink);
 const truncProm = promisify(fs.truncate);
 const accessProm = promisify(fs.access);
-const version = "1.2.0";
+const version = "1.2.1";
 
+const getVersion = () => {
+	return version;
+};
+	
 const accessFile = async function(path, mode=fs.constants.F_OK) {
 	try {
 		await accessProm(path, mode);
@@ -31,19 +35,11 @@ const accessFile = async function(path, mode=fs.constants.F_OK) {
 };
 
 const truncFile = async function(path, keep=0) {
-	try {
 		await truncProm(path, keep);
-	} catch(err) {
-		throw(err);
-	}
 };
 
 const renameFile = async function(path, newPath) {
-	try {
 		await renameProm(path, newPath);
-	} catch(err) {
-		throw(err);
-	}
 };
 
 const copyFile = async function (path, newPath, flags) {
@@ -54,11 +50,7 @@ const copyFile = async function (path, newPath, flags) {
 };
 
 const unlinkFile = async function(path) { 
-	try {
 		await unlinkProm(path);
-	} catch(err) {
-		throw(err);
-	}
 };
 
 /*
@@ -79,13 +71,14 @@ const moveFile = async function(path, newPath, isTrunc, flags) {
 		}
 		else if (err.code !== "EXDEV" && err.code !== "EPERM" 
 				&& err.code !== "EBUSY") {
-			throw("Error in moveFile via renameFile: ", err);
+			console.error(err.errMv01(path)); // Unexpected error, 
+			throw err; // and should be investigated
 		}
 		else {				
 			try {
 				await copyFile(path, newPath, flags);
 			} catch(err) {
-				throw("Error in moveFile after copyFile attempt: \n" + err);
+				throw msg.errMv03(path);
 			}
 			try {
 				if (isTrunc) { // used with initial logfile only
@@ -96,14 +89,23 @@ const moveFile = async function(path, newPath, isTrunc, flags) {
 					return "unlink"; // Success, all is good
 				}
 			} catch(err) {
-					throw("Error in moveFile after unlinkFile try: \n" + err);
+					throw msg.errMv02(path);
 			}
 		}
     }
 };
 
+
+const msg = {
+	errMv01: (s1) => { return `Error in moveFile via renameFile: ${s1}`;},
+	errMv02: (s1) => { return `Error in GwLogger moveFile after unlinkFile try: ${s1}`;},
+	errMv03: (s1) => { return `Error in moveFile after copyFile attempt: ${s1}`;}
+};
+
+
 exports.moveFile = moveFile;
 exports.truncFile = truncFile;
 exports.unlinkFile = unlinkFile;
 exports.accessFile = accessFile;
+exports.getVersion = getVersion;
 

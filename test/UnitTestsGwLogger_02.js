@@ -11,20 +11,11 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-try {
-	if (existsSync("./logfiles/logJsonFile.log")) {
-		unlinkSync("./logfiles/logJsonFile.log"); // out with the old
-	}
-} catch(err) { 
-	console.log("Error in unlinkSync in UnitTestsGwLogger_02: ", err);
-	throw err;
-}
-
-const versionRef = "1.2.0"; // version number of targeted GwLogger.
+const versionRef = "1.2.1"; // version number of targeted GwLogger.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
-tlog.notice("===> UnitTestsGwLogger_02.js is running, logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_02.js is running, results logfile is: ", tlog.getFn()); //./logfiles/Unit Test Results.log
 	
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
@@ -52,26 +43,36 @@ const test_getVersion = function() {
 };
 
 const test_creationStories = function() {
+	try {
+		if (existsSync("./logfiles/logJsonFile.log")) {
+			unlinkSync("./logfiles/logJsonFile.log"); // out with the old
+		}
+	} catch(err) { 
+		console.log("Error in unlinkSync in UnitTestsGwLogger_02: ", err);
+		throw err;
+	}
 	nTests++;
 	try {
-	const loggerTest1 = new GwLogger(); // smoke test, should NOT create log file
-	const fn = loggerTest1.getFn();
-	assert.ok(fn === "./logfiles/logJsonFile.log", "fn was: ", fn); // ensure deleted correct one
-	//console.log("-------------------> Creation Stories profile matches ok");
-	let isLogExists = existsSync(fn);
-	assert.ok(!isLogExists);
-	//console.log("-------------------> Creation Stories #1 ok, new log file was Not created");
-	loggerTest1.setLogLevel("ALL"); // should create logfile since loglevel no longer "OFF"
-	loggerTest1.setIsFile(true);
-	loggerTest1.setIsConsole(false);
-	loggerTest1.info("Hello from UnitTestsGwLogger_02, test_creationStories");
-	isLogExists = existsSync(fn);
-	assert.ok(isLogExists);
-	let log4UT_04 = new GwLogger( { profileFn: "./GwLogger_Profile Param Test Log.json" } );
-	log4UT_04.setModuleName("UT_02");	
-	log4UT_04.notice("log4UT_04 is created now to meet a dependency for a later test, UT_04's isRollAtStartup");
-	nPassed++;
-	tlog.info("test_creationStories Passed!");
+		let isLogExists = existsSync("./logfiles/logJsonFile.log");
+		assert.ok(!isLogExists); // verify disappearance
+		const loggerTest1 = new GwLogger(); // should NOT create new log file (yet)
+		const fn = loggerTest1.getFn();
+		assert.ok(fn === "./logfiles/logJsonFile.log", "fn was: ", fn); // ensure deleted correct one
+		isLogExists = existsSync(fn);
+		assert.ok(!isLogExists);
+		loggerTest1.setLogLevel("info"); // should create logfile since loglevel no longer "OFF"
+		loggerTest1.setIsFile(true);
+		loggerTest1.setIsConsole(true);
+		isLogExists = existsSync(fn);
+		loggerTest1.debug("Hello from UnitTestsGwLogger_02, test_creationStories");
+		
+		
+		assert.ok(isLogExists);
+		let log4UT_04 = new GwLogger( { profileFn: "./GwLogger_Profile Param Test Log.json" } );
+		log4UT_04.setModuleName("UT_02");	
+		log4UT_04.notice("log4UT_04 is created now to meet a dependency for a later test, UT_04's isRollAtStartup");
+		nPassed++;
+		tlog.info("test_creationStories Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_creationStories: ");
 		if (showStackTrace) tlog.error(err);
@@ -105,23 +106,24 @@ const test_getJsonProfile = function() {
 	try {
 		let jsonDefTestStr = JSON.stringify(jsonDefTest2, replacer, 2); // hides huge gwWriteStream from compare, which varies every time.
 		jsonDefTest = JSON.parse(jsonDefTestStr);
-		//console.log("jsonDefTest2 is: ", jsonDefTest2);
+	//	console.log("jsonDefTest2 is: ", jsonDefTest2);
 		let jsonReturn = profiles.getActiveProfile(); // try to get a copy of current settings
-		//console.log("jsonReturn:",jsonReturn);
+	//	console.log("jsonReturn:",jsonReturn);
 		let jsonReturnStr = JSON.stringify(jsonReturn, replacer, 2); // hide gwWriteStream prior to comparison
 		jsonReturn = JSON.parse(jsonReturnStr);
-		//console.log("---- jsonDefTest2, jsonReturn ------------");
-		//console.log(jsonDefTest, "\n",jsonReturn);
-		//console.log("---- END END jsonDefTest2, jsonReturn ------------");		
+	//	console.log("---- jsonDefTest2, jsonReturn ------------");
+	//	console.log(jsonDefTest, "\n",jsonReturn);
+	//	console.log("---- END END jsonDefTest2, jsonReturn ------------");		
 		assert.deepStrictEqual(jsonDefTest2, jsonReturn); // Compare what is stored with what we expected
 		tlog.info("test_getJsonProfile Passed!");
 		nPassed++;
+	//	console.log("test_getJsonProfile Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_getJsonProfile");
 		if (showStackTrace) tlog.error(err);
 	}
 };
-
+ 
 // Here is a set of profile data to use in tests below
 let jsonDefTest = {
 	"fn": "./logfiles/logUnitTestInstance.log",
@@ -253,20 +255,20 @@ const test_profileFileNameErrors = function() {
 	nTests++;
 	try {
 		let fn = "./bogus/XXdirectoryXX/myLogFile.log"; // A non-existant directory
-		bkup_profiles = profiles.getProfileData(); //profiles.getGwWriteStream(); // save the existing 
+		bkup_profiles = profiles.getProfileData(); // save the existing 
 		profiles.deleteProfileData();
 		profiles.newProfileWriteStream(fn);
 		profiles.setProfileData(bkup_profiles);  // restore
 		tlog.error("Fail TESTING: test_profileFileNameErrors");
 	} catch(err) {
-		profiles.setProfileData(bkup_profiles); // profiles.setGwWriteStream(bkup_ws); // restore old writestream
+		profiles.setProfileData(bkup_profiles); // restore old writestream
 		tlog.info("test_profileFileNameErrors Passed!");
 		nPassed++;
 	}
 };
 
 // Test the function that evaluates file names for a custom logfile.
-// This should fail and hit the catch
+// This should fail and hit the catch in order to pass the test
 const test_customFileNameErrors = function() {
 	tlog.info("The next test, test_customFileNameErrors, should throw an error!!");
 	nTests++;
@@ -282,8 +284,8 @@ const test_customFileNameErrors = function() {
 
 // Test that the pool returns the same stream for two distinct custom loggers, as long as using the same logfile.
 const test_customStreamPools = function() {
-	let logger = new GwLogger("trace", true, true, "./logfiles/logJsonFile.log"); // same logfile as tlog.
-	logger.trace("This 'logger' exists only to ensure logJsonFile profile exists for test_customStreamPools test case.");
+	let logger = new GwLogger("trace", false, true, "./logfiles/logJsonFile.log"); // same logfile as tlog.
+	logger.trace("This logger named 'logger' from UT_01 exists only to ensure logJsonFile profile exists for test_customStreamPools test case.");
 	nTests++;
 	try {
 		let streamTlog = profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
@@ -297,7 +299,14 @@ const test_customStreamPools = function() {
 	}
 };
 
-
+try {
+	if (existsSync("./logfiles/logJsonFile.log")) {
+		unlinkSync("./logfiles/logJsonFile.log"); // out with the old
+	}
+} catch(err) { 
+	console.log("Error in unlinkSync in UnitTestsGwLogger_02: ", err);
+	throw err;
+}
 
 test_getVersion();
 test_creationStories();

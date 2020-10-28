@@ -1,7 +1,7 @@
 # GwLogger #
-GwLogger aspires to be a straight-forward, no-hassle logger for NodeJS which logs to file and/or console. It has zero dependencies.
+GwLogger aspires to be a straight-forward, no-hassle logger for NodeJS which logs to file and/or console and supports rolling logs. It has zero dependencies.
 
-GwLogger requires Node.js, version 8.0 or greater. It does not support browser development.
+GwLogger requires Node.js, version 8.0 or greater.
 
 ## Feature Releases ##
 |Release   |Date| Summary  |
@@ -9,6 +9,7 @@ GwLogger requires Node.js, version 8.0 or greater. It does not support browser d
 | 1.0.0 | 2020-08-09 | Initial Release |
 | 1.1.0 | 2020-09-21 | Added rolling logs (by size) and multiple profile support |
 | 1.2.0 | 2020-10-01 | Added rolling logs (at startup) |
+| 1.2.1 | 2020-10-28 | Error-handling improvements, Separated msgs from code, try/catch fixes, Minor edits |
 
 ## Installation ##
 Install locally from your project\'s main directory into the node_modules directory via NPM:
@@ -38,10 +39,19 @@ Now that you have a logger defined, you can log something:
 **05-13T21:08:39:027 WARN: Did this warning get logged?**
 The line from your logfile shows the result. Obviously, this warning was logged on May 13th at 9:08pm, plus 39 seconds and 27 milliseconds.
 
-The API, described later, can be used to change most settings, for example the loglevel can be adjusted this way:
+Settings can be changed via profiles, environment variables or the API. For example the loglevel can be adjusted this way:
 ```javascript
 log.setLogLevel("debug");
 ```
+Rolling logs can be defined this way:
+
+```javascript
+log.setRollingLogPath("./logfiles/rollingLogs");
+log.setMaxLogSizeKb(200);
+log.setMaxNumRollingLogs(5);
+log.setIsRollBySize(true);
+```
+
 ### Constructors ###
 #### GwLogger(loglevel, isConsole, isFile, fileName) ####
 Where:
@@ -57,8 +67,7 @@ const log = new GwLogger("info", true, false); // logs to console only
 const log = new GwLogger("info", true, true, "./logfiles/mylogfile.log"); // logs to console and mylogfile
 ``` 
 
-`let log = new GwLogger("DEBUG", true, false);`  creates a logger at debug level, and adds logging-to-console, but turns off logging to file. The following statment in your source:`log.debug("Did this debug detail get logged?");`
-would result in an item like this on the console:
+`let log = new GwLogger("DEBUG", true, false);`  creates a logger at debug level, and adds logging-to-console, but turns off logging to file. The following statment in your source:`log.debug("Did this debug detail get logged?");` would result in an item like this on the console:
 **DEBUG: Did this debug detail get logged?**
 
 By built-in default, logging is to a file named "./gwl_log.log" in your apps current  working directory. This generally means the directory where myapp.js lives when you type \'node myapp.js\'. There are several ways to specify a different location/name for the logfile, such as using a profile file, an environment variable, or specifying the path when creating a new logger. 
@@ -68,7 +77,7 @@ A new instance of GwLogger must be created inside each source file in which you 
 `const log = new GwLogger("info", true, true);` // logs to console and the default log file
 `const log = new GwLogger("info", false, true, "./logger/logger.log");` // does not log to console
 
-The second construction above overrides the default logfile location only for this specific logger.
+The second construction above overrides the default logfile location for this specific logger.
 
 The supported log levels are: OFF, FATAL, ERROR, WARN, NOTICE, INFO, DEV, DEBUG, TRACE, and ALL. Change the log level for any logger instance at any time in your source by calling (for example): `log.setLogLevel("info");`
 
@@ -78,10 +87,6 @@ The above is about all you\'ll usually need for many NodeJS projects.
 
 Some settings can only be specified at runtime via the API. For instance, the module\'s name (or other short descriptor) can be added near the beginning of each logged statement by adding this in your source code: `log.setModule("myMain");` Timestamps can be added to console output (they always appear in logfiles) by using: `log.setIsConsoleTs(true);` Those two statements would result in:
 **05-13T21:08:39:027 DEBUG myMain: Did this debug detail get logged?**
-##### Timestamp formats #####
-Timestamp formats are based on ISO-8601, although that can be tweaked with the profile or environment variables, and at runtime. For instance, you can specify the number of year digits, whether to include milliseconds, or local vs. UTC time.
-
-Besides ISO-8601, you can specify to show timestamps in only milliseconds since 1/1/1970 UTC (aka the Unix Epoch).
 
 #### GwLogger(profile_object) ####
 In this constructor, profile_object contains an attribute profileFn with string value pointing to a file to use for this logger\'s JSON profile. Profiles are described in the next section.
@@ -185,6 +190,11 @@ A note about GwLogger log levels: The default is OFF, but log levels can be spec
 *	ALL=currently same as trace. Included for compatibility\'s sake, not really useful in GwLogger.
 
 Log levels are used in two ways: To set the current logging level and in logging statements. All the above except OFF and ALL may be used in logging statements, but lower-case only.
+
+### Timestamp formats #####
+Timestamp formats are based on ISO-8601, although that can be tweaked with the profile or environment variables, and at runtime. For instance, you can specify the number of year digits, whether to include milliseconds, or local vs. UTC time.
+
+Besides ISO-8601, you can specify to show timestamps in only milliseconds since 1/1/1970 UTC (aka the Unix Epoch).
 
 ### GwLogger\'s Application Programming Interface (API)
 The API contains a list of public methods for each logger accessed as in the earlier examples: `log.<apiCall()>.` Settings that can also be specified in the profile are marked with an '*\'. Environment variable names are given, when applicable. API methods will override profile/environment settings, and profile/environment settings will override built-in defaults. If any GwLogger environment variable is found, JSON profile files are ignored.

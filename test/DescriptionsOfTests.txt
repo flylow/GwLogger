@@ -6,7 +6,12 @@
 
  The Node.js "assert" package is used, and no dependencies are necessary to test. 
  Zero dependencies was a goal of gwlogger, but has led to some platform-specific tests. 
- Development is in Windows right now, so there are simple bat files that run 
+
+ Testing on Ubuntu was by editing .bashrc to set/unset the environment variables
+ for UnitTestsGwLogger_03.js. It is also possible to do same from NPM or terminal command, 
+ but those too are OS-specific. 
+
+ Development is primarily in Windows right now, so there are simple bat files that run 
  the tests with help from envSet.bat and envUnset.bat. However, it is not that hard to
  run tests manually.
  
@@ -15,10 +20,6 @@
    1. gwloggr/test/logfiles
    2. gwlogger/test/rolledfiles
    3. gwlogger/test/rolledfiles/rolledfiles2
- 
- Testing on Ubuntu was by editing .bashrc to set/unset the environment variables
- for UnitTestsGwLogger_03.js. It is also possible to do same from NPM or terminal command, 
- but those too are OS-specific. 
 
  Most tests can be executed independently, however UnitTestsGwLogger_03 requires
  prep work to set up environment variables (see support files envSet.bat and envUnset.bat),
@@ -51,8 +52,8 @@
 		test_createActiveProfile();
 		test_Str2NumLogLevel();
 		test_getTimeStamp();
-		test_profileFileNameErrors(); // should trap and continue on bad path
-		test_customFileNameErrors();  // should trap and continue on bad path
+		test_profileFileNameErrors();
+		test_customFileNameErrors(); 
 		test_customStreamPools();
 	gwlogger\test>node UnitTestsGwLogger_02.js	
 		

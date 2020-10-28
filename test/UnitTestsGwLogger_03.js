@@ -8,11 +8,11 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.0"; // version number of targeted GwLogger.
+const versionRef = "1.2.1"; // version number of targeted GwLogger.
 
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_03");
-tlog.notice("===> UnitTestsGwLogger_03.js is running, logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_03.js is running, results logfile is: ./logfiles/Unit Test Results.log");
 	
 
 const showStackTrace = true;

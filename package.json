@@ -1,6 +1,6 @@
 {
   "name": "@flylow/gwlogger",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A quick to use logger that attempts to have most useful features.",
   "main": "GwLogger.js",
   "scripts": {},
@@ -22,7 +22,7 @@
   "bugs": {
     "url": "https://github.com/flylow/GwLogger/issues"
   },
-	"keywords": ["logger", "logging", "log", "logs", "development", "tools", "debug" ],
+	"keywords": ["logger", "logging", "log", "logs", "rolling", "development", "tools", "debug" ],
   "homepage": "https://github.com/flylow/GwLogger",
   "engines": {"node": ">=0.8.0"},
   "devDependencies": {

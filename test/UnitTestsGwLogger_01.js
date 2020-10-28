@@ -18,12 +18,11 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.0"; // set to target version of GwLogger for test of getVersion method.
-	
-const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
+const versionRef = "1.2.1"; // set to target version of GwLogger for test of getVersion method.	
+const tlog = new GwLogger("notice", true, "true", "./logfiles/Unit Test Results.log");
 tlog.notice("-----------------------------  Unit Testing Begins -----------------------------------------------");
 tlog.setModuleName("UT_01");
-tlog.notice("===> UnitTestsGwLogger_01.js is running, logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_01.js is running, results logfile is: ./logfiles/Unit Test Results.log");
 
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
@@ -231,12 +230,6 @@ const test_getFn = function() {
 		if (showStackTrace) tlog.error(err);
 	}
 };
-
-
-
-const logp = new GwLogger( 	{ "profileFn": "./GwLoggerTEMP.json" });	
-logp.info("Profile profileFn works!");
-
 
 test_getVersion();
 test_setIsEpoch();

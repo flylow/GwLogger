@@ -11,11 +11,11 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.0"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.2.1"; // set to target version of GwLogger for test of getVersion method.
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.notice("-----------------------------  Unit Testing Begins -----------------------------------------------");
 tlog.setModuleName("UT_04");
-tlog.notice("===> UnitTestsGwLogger_04.js is running, logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_04.js is running, results logfile is: ./logfiles/Unit Test Results.log");
 
 const showPercentage = function(msg, percentage){
     process.stdout.clearLine();
@@ -149,7 +149,7 @@ const test_RollingLogsViaProfile = function(retryNum=0) {
 		const birthTimeMs = fileStat.birthtimeMs;
 		tlog.debug("logPro size: ",startSizeBytes,", birthTimeMs is: ", birthTimeMs, ", diff is: ", Date.now() - birthTimeMs);
 		assert.ok(startSizeBytes < 1000, "Did not detect roll-at-startup as expected");
-		tlog.debug("stateRecord is: ", logPro.getStateRecord());
+		//tlog.debug("stateRecord is: ", logPro.getStateRecord());
 		let maxNumRollingLogs = logPro.getMaxNumRollingLogs();
 		assert.ok(maxNumRollingLogs === 9, "getMaxNumRollingLogs = 9 failed (from object-profile), actual: " + maxNumRollingLogs);
 		logPro.setMaxNumRollingLogs(2);
@@ -214,6 +214,7 @@ const test_recovery = function(n, iters, isFileDelete) {
 				} catch(err) {
 					console.error(" test_recovery logging failed, n=",n, ", error is: \n", err);
 					test_recovery_pass = false;
+					tlog.info("stateRecord is: ", log2.getStateRecord());
 					tlog.notice("\nTotal UnitTestsGwLogger_04.js Unit Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
 				}
 				test_recovery(n, iters, isFileDelete);
@@ -226,11 +227,12 @@ const test_recovery = function(n, iters, isFileDelete) {
 			else if (test_recovery_pass) {				
 				nPassed++;
 				tlog.info("test_recovery passed");
+				//console.log("stateRecord is: ", log2.getStateRecord());				
 				tlog.notice("\nTotal UnitTestsGwLogger_04.js Unit Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
 			}
 		}
 };
-tlog.setLogLevel("info");
+tlog.setLogLevel("notice");
 testPrereqs();
 test_getVersion();
 test_maxLogSize();
@@ -240,7 +242,7 @@ test_isRollBySize();
 test_RollingLogsViaProfile();
 
 
-tlog.setLogLevel("info");
+tlog.setLogLevel("notice");
 log2.setMaxLogSizeKb(50);
 log2.setMaxNumRollingLogs(20);
 log2.setRollingLogPath("./logfiles");

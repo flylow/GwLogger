@@ -8,11 +8,11 @@ const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
 
-const versionRef = "1.2.0"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.2.1"; // set to target version of GwLogger for test of getVersion method.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_05");
-tlog.notice("===> UnitTestsGwLogger_05.mjs is running, logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_05.mjs is running, results logfile is: ./logfiles/Unit Test Results.log");
 
 // Startup API test
 const logger = new GwLogger("DEBUG", false, false, "./logfiles/Profile Param Test Log.log");

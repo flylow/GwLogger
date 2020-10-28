@@ -5,7 +5,7 @@
  *
  * It helps ensure that any of the user's instances of GwLogger that log to the 
  * same logfile will write to the same writeStream rather than creating 
- * another one on a different buffer. 
+ * another one on a different buffer. It handles a lot of details.
  * 
 */
 // exceptions to ESLint no-init rule
@@ -22,10 +22,9 @@ const openSync = require("fs").openSync;
 const moveFile = require("./fsprom.js").moveFile;
 const unlinkFile = require("./fsprom.js").unlinkFile;
 const accessFile = require("./fsprom.js").accessFile;
-const version = "1.2.0";
 
-//const RollFiles = require("./RollFiles").RollFiles;
-//const rollFiles = new RollFiles();
+const version = "1.2.1";
+
 /*
 Most buffering occurs inside the stream object, as usual for writestreams. 
 But during a roll event, a localQueue, defined below, takes over. Buffering 
@@ -60,13 +59,17 @@ class LogFileRec {
 	}
 }
 
-
+// The main class that does all the work managing files and streams.
 class WritePool {
 	constructor () {
 		// After every nth write attempt will see if file needs rolled for size		
 		this.CHECK_FREQUENCY = 20;
 		this.checked = 0; // A counter adjusted after each write attempt.
-	}	
+	}
+
+	getVersion() {
+		return version;
+	}
 	
 	// ucFn is "upper-case file name" without any whitespace, and is
 	// used as a key for logfile records and streams.
@@ -168,16 +171,6 @@ class WritePool {
 			}
 		return logFiles[ucFn].isRolling;
 	}	
-
-	// Will add the items in nuBits to the writeStreams record
-	updateRecord(ucFn, nuBits) {
-		let record;
-		record = writeStreams[ucFn];	
-		if (!record) return null;
-		record = {...record, ...nuBits};
-		writeStreams[ucFn] = record;
-		return record;		
-	}
 	
 	// test instrumentation
 	getWsStream(ucFn) {
@@ -187,6 +180,16 @@ class WritePool {
 		} else {
 			return null; // no ws at this time
 		}		
+	}
+	
+	// Will add the items in nuBits to the writeStreams record
+	updateRecord(ucFn, nuBits) {
+		let record;
+		record = writeStreams[ucFn];	
+		if (!record) return null;
+		record = {...record, ...nuBits};
+		writeStreams[ucFn] = record;
+		return record;		
 	}
 	
 	// Returns a stream for a given logfile. 
@@ -207,8 +210,7 @@ class WritePool {
 				}
 			}
 			catch(err) {
-				throw("Error closing record.watcher or ending stream for fn: "
-					, fn, ", error is: ", err);
+				throw msg.errWatch01(fn);
 			}
 		}	
 		if (replace && record && record.fd) {
@@ -216,6 +218,8 @@ class WritePool {
 		}
 		writeStreams[ucFn] = {}; // clean slate for this file record
 		writeStreams[ucFn].ready = false;
+		// Make sure the file exists already, or the stream's lazy file create process
+		// may not beat other dependencies (esp. watcher)		
 		this.touch(fn);
 		ws = this.createCustomWriter(fn); // create a new stream, maybe a logfile
 		writeStreams[ucFn].ws = ws;
@@ -267,7 +271,7 @@ class WritePool {
 		}
 	}
 	
-	// The still-synchronous prelude to async rollFiles
+	// The mostly-synchronous prelude to async rollFiles
 	preRollFiles(ucFn) {
 		logFiles[ucFn].isRolling = true;
 		logFiles[ucFn].isQueuing = true;
@@ -275,9 +279,8 @@ class WritePool {
 		const ws = (writeStreams[ucFn] && writeStreams[ucFn].ws) 
 			? writeStreams[ucFn].ws 
 			: null;			
-		//this.preRollAsync(ucFn);
-		const p = new Promise(async (resolve) => {
-			let needNewStream = await this.rollFiles(ucFn, ws, fn);
+		const p = new Promise( (resolve) => {
+			let needNewStream = this.rollFiles(ucFn, ws, fn);
 			resolve(needNewStream);
 		});
 		p.then((needNewStream) => {
@@ -294,8 +297,7 @@ class WritePool {
 		const fnPath = path.parse(fn);
 		let typeOfMove;
 		nuFname = rollingLogPath + "/" + fnPath.name + "_" 
-			+ (""+1).padStart(3,0) + fnPath.ext; // to be most recently rolled	
-			
+			+ (""+1).padStart(3,0) + fnPath.ext; // to be most recently rolled				
 		await this.rollLogtrain(ucFn, fnPath, rollingLogPath);		
 		// move current logfile to temporary stash
 		try {
@@ -305,14 +307,11 @@ class WritePool {
 			// An unanticipated error, likely in moveFile			
 			// Try to recover without bringing down the application
 			// make sure there is a logfile at very least, clean-up and exist
-			console.error("In rollFiles with error moving logfile:\n", err);			
-			logFiles[ucFn].isRollBySize = false; // turn off rolling for file 						
+			console.error(msg.warNoRoll01(fn), err);			
+			logFiles[ucFn].isRollBySize = false; // turn off rolling for logfile 						
 			if (ws) ws.end();
-			//this.rollNewStream(fn);
 			return true; // exit rollFiles and do rollNewStream
-		}
-		
-
+		}		
 		if (typeOfMove === "trunc") {
 			logFiles[ucFn].isRolling = false;
 		}
@@ -337,7 +336,7 @@ class WritePool {
 						try {
 							await moveFile(oldFname, nuFname);
 						} catch(err) {
-							console.error("Error: Cannot roll: ", oldFname, err);
+							console.error(msg.warRollOld01 + oldFname, err);
 							// don't throw
 						}
 					}
@@ -351,7 +350,7 @@ class WritePool {
 	async rollLogfile(fn, nuFname, ucFn, ws) {
 		const typeOfMove = await moveFile(fn, nuFname, true);
 		if (!typeOfMove || typeOfMove === "none") { 
-			throw("typeOfMoveIsNone");
+			throw("typeOfMoveIsNone"); // is caught in rollFiles method
 		} else if (typeOfMove === "trunc") { // truncated fn
 			logFiles[ucFn].truncate = true;
 			logFiles[ucFn].startSizeKb = 0;
@@ -395,7 +394,12 @@ class WritePool {
 				const fd = openSync(fn, "w"); // make sure file exists
 				closeSync(fd);
 			} catch(err) {
-				if (retryNum >= 20) throw(err);
+				if (retryNum >= 20) {
+					console.error(msg.errNotOpen(fn));
+					logFiles[this.getUcFn(fn)].isRollingError = 100; // cannot open file, giving up.
+					logFiles[this.getUcFn(fn)].localQueue = []; // can never save to file.
+					return; // give up, abandon logfile queue, fatal.
+				}
 			}
 			// will recurse now after a setTimeout			
 			setTimeout(() => {
@@ -403,9 +407,7 @@ class WritePool {
 			}, 200);		
 		}		
 	}	
-	
-	// Make sure the file exists already, or the lazy stream's file create process
-	// may not beat other dependencies (esp. watcher)	
+		
 	logFileInit(fn, ucFn) {		
 		try {
 			// get current file information
@@ -419,7 +421,7 @@ class WritePool {
 			logFiles[ucFn].startSizeKb = startSizeBytes / 1024;
 			logFiles[ucFn].birthTimeMs = birthTimeMs;
 		} catch(err) {
-			throw("logFileInit error: ", err);
+			throw msg.errLfInit01(fn);
 		}		
 	}
 	
@@ -430,8 +432,10 @@ class WritePool {
 				ws.write(logFiles[ucFn].localQueue.shift(), "utf8");
 			}
 		} catch(err) {
-			throw("Error emptying local buffer, len is: " 
-				+ logFiles[ucFn].localQueue.length + "\n", err);
+			console.error(msg.errQ01(logFiles[ucFn].localQueue.length, logFiles[ucFn].fn), err);
+			logFiles[ucFn].isRollingError = 101; // cannot write queue!
+			logFiles[ucFn].localQueue = []; // can never write to file.	
+			return;
 		}
 		logFiles[ucFn].isQueuing = false;
 	}
@@ -443,8 +447,7 @@ class WritePool {
 		let ucFn = this.getUcFn(fn);
 		let isQ = logFiles[ucFn].isQueuing;
 		let isR = logFiles[ucFn].isRolling;
-		// Make sure the file exists now, or the lazy stream create process may 
-		// not beat other dependencies (watcher)
+		// Make sure the file exists
 		this.logFileInit(fn, ucFn);	
 		logFiles[ucFn].isQueuing = isQ; 
 		logFiles[ucFn].isRolling = isR;	
@@ -458,7 +461,7 @@ class WritePool {
 				// close the fd, so will ignore those errors here.
 				if (!ucFn || !writeStreams[ucFn] || writeStreams[ucFn].fd 
 					|| err.code !== "EBADF" || err.syscall !== "close") {
-					console.error("Caught unexpected error in WritePool.ws: ",err);
+					console.error(msg.errUE01,err);
 					//throw(err);
 				} 
 			});
@@ -503,12 +506,11 @@ class WritePool {
 					}
 				});	
 				watcher.on("error",	(err) => {
-					console.error("%% error watching logfile:\n", err);
+					console.error(msg.warWat01(fn), err);
 				});			
 			}
 			catch(err) {
-				console.log("Error defining writePool's logfile watcher: ", err);
-				// no-op
+				console.error(msg.warWat02(fn)); // A warning, will continue
 			}
 			if (watcher) {
 				this.updateRecord(ucFn, { // save reference to watcher
@@ -517,7 +519,7 @@ class WritePool {
 			}
 			return ws;
 		} catch(err) {
-			console.error("ERROR, In WritePool.createCustomWriter: ", err);
+			console.error(msg.errWpCw01(fn));
 		}
 	}
 	
@@ -536,7 +538,6 @@ class WritePool {
 			this.setIsRollAtStartup(ucFn, activeProfile.isRollAtStartup);
 			this.setMaxLogSizeKb(ucFn, activeProfile.maxLogSizeKb);
 			this.setMaxNumRollingLogs(ucFn, activeProfile.maxNumRollingLogs);
-			//console.log(" In getStream, ucFn is: ", ucFn, ", activeProfile is: ", activeProfile);
 			this.setRollingLogPath(ucFn, activeProfile.rollingLogPath);			
 			// setIsRollBySize must be last, after other roll-by-size settings
 			this.setIsRollBySize(ucFn, activeProfile.isRollBySize);
@@ -557,18 +558,21 @@ class WritePool {
 	}
 	
 	writeToQueue(ucFn, txt) {
+		if (logFiles[ucFn].isRollingError > 99)  {
+			throw "nofileorstreamfatal";
+		}
 		logFiles[ucFn].localQueue.push(txt);
 	}
 	
 	// Writes to the logfile's stream or localQueue
 	write(ucFn, txt) {
-		let bufferOk = false;
-		if (logFiles[ucFn].isQueuing) { 
-			// write to array buffer until new file/writestream created		
-			this.writeToQueue(ucFn, txt);
-			return bufferOk; // 'false' will apply artificial backpressure
-		}
-		try {
+		try {		
+			let bufferOk = false;
+			if (logFiles[ucFn].isQueuing) { 
+				// write to array buffer until new file/writestream created		
+				this.writeToQueue(ucFn, txt);
+				return bufferOk; // 'false' will apply artificial backpressure
+			}
 			const ws = writeStreams[ucFn].ws;
 			// bufferOk will hold the stream buffer's backpressure status 
 			// (will be false if buffer size is over high-water mark)
@@ -581,14 +585,34 @@ class WritePool {
 			this.checked++;
 			return bufferOk;
 		} catch(err) {
-			console.log("Error in WritePool.write, ucFn: ", ucFn, "Error:\n", err);
-			throw("ERROR in GwLogger.WritePool.write: ", err);
+			if (logFiles[ucFn].isRollingError > 99) {
+				throw {isRollingError: logFiles[ucFn].isRollingError, errName: "nofileorstreamfatal"};
+			}
+			const fn = (logFiles && logFiles[ucFn]) 
+				? logFiles[ucFn].fn 
+				: msg.unknown;
+				console.error(msg.errWpw01(fn), err);
+				logFiles[this.getUcFn(fn)].isWritePoolError = 100; // cannot write!	
+				throw {isWritePoolError: logFiles[ucFn].isWritePoolError, errName: "cannotwritefatal"};			
 		}
 	}
-
 }
 
-
+const msg = {
+	errWatch01: (s1) => {return `ERROR in GwLogger.WritePool 
+closing record.watcher for fn: ${s1}\n`;},
+	warRollOld01: "WARNING: Cannot roll: ",
+	errLfInit01: (s1) => {return `logFileInit error with file: ${s1} `;},
+	errQ01: (s1, s2) => {return `Error writing local buffer to file, len is: ${s1}, file is: ${s2}; will stop logging to file.\n`;},
+	errUE01: "Unexpected error in GwLogger.WritePool: ",
+	errWpw01: (s1) => {return `Error in GwLogger.WritePool.write logging to file: ${s1}\n`;},
+	warNoRoll01: (s1) => {return `GwLogger with error moving logfile: ${s1} --turning off rolling.\n`;},
+	warWat01: (s1) => {return `WARNING: error watching logfile: ${s1}\n`;},
+	warWat02: (s1) => {return `WARNING: unable to define GwLogger.writePool watcher for: ${s1}`;},
+	errWpCw01: (s1) => {return `ERROR, In WritePool.createCustomWriter for file: ${s1}\n`;},
+	errNotOpen: (s1) => {return `ERROR: GwLogger cannot open file: ${s1}, and will stop logging to file.`;},	
+	unknown: "unknown"
+};
 
 const writePool = new WritePool();
 
