@@ -9,7 +9,6 @@ GwLogger requires Node.js, version 8.0 or greater.
 | 1.0.0 | 2020-08-09 | Initial Release |
 | 1.1.0 | 2020-09-21 | Added rolling logs (by size) and multiple profile support |
 | 1.2.0 | 2020-10-01 | Added rolling logs (at startup) |
-| 1.2.1 | 2020-10-28 | Error-handling improvements, Separated msgs from code, try/catch fixes, Minor edits |
 
 ## Installation ##
 Install locally from your project\'s main directory into the node_modules directory via NPM:
