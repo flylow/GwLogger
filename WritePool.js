@@ -23,7 +23,7 @@ const moveFile = require("./fsprom.js").moveFile;
 const unlinkFile = require("./fsprom.js").unlinkFile;
 const accessFile = require("./fsprom.js").accessFile;
 
-const version = "1.2.1";
+const version = "1.2.2";
 
 /*
 Most buffering occurs inside the stream object, as usual for writestreams. 

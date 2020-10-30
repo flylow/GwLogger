@@ -20,7 +20,7 @@ const { ProfileClass } = require("./Profiles");
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 
-const version = "1.2.1";
+const version = "1.2.2";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {

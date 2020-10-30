@@ -17,7 +17,7 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
-const version = "1.2.1";
+const version = "1.2.2";
 
 class Profiles {
 

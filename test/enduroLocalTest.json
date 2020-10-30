@@ -5,12 +5,12 @@
 	"isConsole": false,
 	"isConsoleTs": false,
 	"isEpoch": false,
-	"nYr": 0,
-	"isLocalTz": true,
+	"nYr": 0, 
+	"isLocalTz": true, 
 	"isShowMs": true,
-	"isRollAtStartup": true,
+	"isRollAtStartup": true, 
 	"isRollBySize": true,
-	"maxLogSizeKb": 200,
-	"maxNumRollingLogs": 20,
+	"maxLogSizeKb": 100,
+	"maxNumRollingLogs": 22,
 	"rollingLogPath": "./rolledFiles"
 }

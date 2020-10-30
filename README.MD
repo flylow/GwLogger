@@ -1,4 +1,4 @@
-# GwLogger #
+-# GwLogger #
 GwLogger aspires to be a straight-forward, no-hassle logger for NodeJS which logs to file and/or console and supports rolling logs. It has zero dependencies.
 
 GwLogger requires Node.js, version 8.0 or greater.
@@ -10,8 +10,8 @@ GwLogger requires Node.js, version 8.0 or greater.
 | 1.1.0 | 2020-09-21 | Added rolling logs (by size) and multiple profile support |
 | 1.2.0 | 2020-10-01 | Added rolling logs (at startup) |
 
-## Installation ##
-Install locally from your project\'s main directory into the node_modules directory via NPM:
+## Installation/Update ##
+Install or update locally from your project\'s main directory into the node_modules directory via NPM:
 ```javascript
 `npm i @flylow/gwlogger`
 
@@ -42,7 +42,7 @@ Settings can be changed via profiles, environment variables or the API. For exam
 ```javascript
 log.setLogLevel("debug");
 ```
-Rolling logs can be defined this way:
+Rolling logs by size can be defined this way using the API:
 
 ```javascript
 log.setRollingLogPath("./logfiles/rollingLogs");
@@ -88,7 +88,7 @@ Some settings can only be specified at runtime via the API. For instance, the mo
 **05-13T21:08:39:027 DEBUG myMain: Did this debug detail get logged?**
 
 #### GwLogger(profile_object) ####
-In this constructor, profile_object contains an attribute profileFn with string value pointing to a file to use for this logger\'s JSON profile. Profiles are described in the next section.
+In this constructor, profile_object contains an attribute profileFn with string value pointing to a file to use for this logger\'s JSON profile. Profiles are described in the next section. If speified, this profile would override an optional GwLogger.json profile (but does not override environement variables).
 
 Sample use:
 ```javascript
@@ -96,9 +96,9 @@ const log = new GwLogger({profileFn: "./profiles/myprofile.json"}});
 ```
 
 ## Profile or Environment Variables
-A common way to specify the logfile name and other logging parameters is to create a logging profile -- a small json file, which can be shared by all loggers by default or described uniquely to each logger.
+A common way to specify the logfile name and other logging parameters is to create a logging profile -- a small json file, which can be shared by all loggers by default. Or, a unique json file can be used as described in the second constructor just above.
 
-By default at startup, each instance of GwLogger checks for environment variables (described later), but if none are found looks in the same directory as the initiating application for an optional JSON profile. If used, it must be named \"GwLogger.json\". Any specified setting in the file will override the built-in default setting for that attribute, but only the attributes shown in the example below will be recognized. This example also documents the built-in defaults.
+By default at startup, each instance of GwLogger checks for environment variables (described later), but if none are found looks in the same directory as the initiating application for an optional JSON profile. This general profile, if used must be named \"GwLogger.json\". Any specified setting in the file will override the built-in default setting for that attribute, but only the attributes shown in the example below will be recognized. This example also documents the built-in defaults if no profile is specified.
  ##### Example of GwLogger.json using built-in default values, #####
 ```json
   {
@@ -118,7 +118,7 @@ By default at startup, each instance of GwLogger checks for environment variable
   }
 ```
  		
-If found, all instances of GwLogger for your application will use the GwLogger.json profile you created to override built-in default values, unless a different profile is specified or environment variables are found. 
+If found, all instances of GwLogger for your application will use the GwLogger.json profile you created to override built-in default values, unless a different profile is specified in the constructor or environment variables are found. 
   
 If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each one should be preceded by "GWL_" so that GwLogger can find them. Such as:
 ```shell
@@ -126,7 +126,7 @@ GWL_fn=mylogfile.txt
 GWL_isConsole=true
 GWL_nYr=4
 ```
-Note that if **any** GwLogger environment variable is discovered, then json profiles will be ignored.
+Note that if **any** GwLogger environment variable is discovered, then all json profiles will be ignored.
 
 You\'ll set these in an [operating-system-specific](https://en.wikipedia.org/wiki/Environment_variable "operating-system-specific") way, or maybe use [dotenv](https://github.com/motdotla/dotenv "dotenv").  
 Any values that are not set by the shared GwLogger.json profile, another json file you specify in the constructor, or in the environment variables will be initialy set according to the built-in defaults.
@@ -233,7 +233,7 @@ The API contains a list of public methods for each logger accessed as in the ear
 |getMaxLogSizeKb(); |Returns a number |
 |*setIsRollBySize(b); |If b=true, will attempt to turn on rolling logs. Must be the last setting for roll files, because other roll setting changes via the API will automatically set this to false. Environment variable: \"GWL_isRollBySize=\"\<boolean>|
 |getIsRollBySize(); |Return boolean true/false. |
-|*setIsRollBySize(b); |  This variable is best set either by an environment variable ("GWL_isRollAtStartup=\"\<boolean>) or in the json profile. However, if a GwLogger is created at OFF level and/or with isFile=false, then setIsRollBySize can be used. See the section "[Rolling Logs at Startup](#cheatRollAtStart "Rolling Logs at Startup")".  |
+|*setIsRollAtStartup(b); |  This variable is best set either by an environment variable ("GWL_isRollAtStartup=\"\<boolean>) or in the json profile. However, if a GwLogger is created at OFF level and/or with isFile=false (so that logging-to-file is not enabled), then setIsRollAtStartup can be set via the API. See the section "[Rolling Logs at Startup](#cheatRollAtStart "Rolling Logs at Startup")".  |
 |getIsRollAtStartup(); |Return boolean true/false. |
 
 Of course, most log levels (except off and all) are API methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
@@ -242,7 +242,8 @@ log.`<level>`(`<data to log>`). You may also comma-separate data items:
 
 ### Developer and Tester Notes ###
 Test directories and files are not included in the NPM releases, but can be found on GitHub. In the test directory, see the file \"DescriptionOfTests.txt\".
-
+ ### Bugs or Problems
+ If you find a bug or usability problem, please open an [issue](https://github.com/flylow/GwLogger/issues?q=is%3Aopen+is%3Aissue "issue").
 
 MIT license.
 

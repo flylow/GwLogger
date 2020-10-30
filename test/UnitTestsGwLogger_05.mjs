@@ -8,7 +8,7 @@ const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
 
-const versionRef = "1.2.1"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.2.2"; // set to target version of GwLogger for test of getVersion method.
 	
 const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_05");
