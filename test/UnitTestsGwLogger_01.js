@@ -16,23 +16,36 @@ const GwLogger = require("../GwLogger").GwLogger;
 let assert;
 assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
+// need to check version numbers in all source files
+const { ProfileClass } = require("../Profiles");
+const fsprom = require("../fsprom.js");
+const writePool = require("../WritePool.js");
 // -- end of require section
 
-const versionRef = "1.2.2"; // set to target version of GwLogger for test of getVersion method.	
-const tlog = new GwLogger("notice", true, "true", "./logfiles/Unit Test Results.log");
-tlog.notice("-----------------------------  Unit Testing Begins -----------------------------------------------");
+const versionRef = "1.2.3"; // set to target version of GwLogger	
+const tlog = new GwLogger("notice", true, "true"
+	, "./logfiles/Unit Test Results.log");
+tlog.notice("-----------------------------  Unit Testing Begins "
+	+ "-----------------------------------------------");
 tlog.setModuleName("UT_01");
-tlog.notice("===> UnitTestsGwLogger_01.js is running, results logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_01.js is running, results " 
+	+ "logfile is: ./logfiles/Unit Test Results.log");
 
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
 let nPassed = 0;
 
-
+// Test version number of all source files.
 const test_getVersion = function() {
 	nTests++;
 	try {
-	const ver = GwLogger.getVersion();
+	let ver = GwLogger.getVersion();
+	assert.equal(ver, versionRef);
+	ver = ProfileClass.getVersion();
+	assert.equal(ver, versionRef);
+	ver = writePool.getVersion();
+	assert.equal(ver, versionRef);
+	ver = fsprom.getVersion();
 	assert.equal(ver, versionRef);
 	nPassed++;
 	tlog.info("test_getVersion Passed!");
@@ -193,6 +206,24 @@ const test_setIsConsole = function() {
 	}
 };
 
+const test_setIsColor = function() {	
+	nTests++;
+	try {
+		let log = new GwLogger();
+		log.setIsColor(false);
+		let isColor = log.getIsColor();
+		assert.ok(isColor === false, "set/getIsColor false failed");
+		log.setIsColor(true);
+		isColor = log.getIsColor();
+		assert.ok(isColor === true, "test_set/getIsColor true failed");
+		nPassed++;
+		tlog.info("test_setIsColor Passed!");
+	} catch(err) {
+		tlog.error("Fail TESTING: test_setIsColor");
+		if (showStackTrace) tlog.error(err);
+	}
+};
+
 const test_setIsFile = function() {	
 	nTests++;
 	try {
@@ -211,15 +242,16 @@ const test_setIsFile = function() {
 	}
 };
 
-// Tests that getFn can get both a profile/default fn and also one set by constructor
+// Tests that getFn can get a profile/default fn and also one set by constructor
 const test_getFn = function() {	
 	nTests++;
 	try {
-		let log = new GwLogger("WARN", false, false, "./logfiles/testLog4getFn.log");
+		let log = new GwLogger("WARN", false, false
+			, "./logfiles/testLog4getFn.log");
 		let fn = log.getFn();
-		// The following fn should equal the one above, passed in the args to create a new logger.
-		assert.ok(fn === "./logfiles/testLog4getFn.log", "getFn failed 1, fn="+fn); 
-		//console.log("getFn() for constructor's custom fn/stream completed okay.");
+		// This fn should equal the one passed in the args to create a new logger.
+		assert.ok(fn === "./logfiles/testLog4getFn.log"
+			, "getFn failed 1, fn="+fn); 
 		let log2 = new GwLogger("ERROR", true, true);
 		fn = log2.getFn();
 		assert.ok(fn === "./logfiles/logJsonFile.log", "getFn failed 2, fn="+fn);
@@ -240,9 +272,11 @@ test_setIsConsoleTs();
 test_setSepCharX();
 test_setLogLevel();
 test_setIsConsole();
+test_setIsColor();
 test_setIsFile();
 test_getFn();
 
-tlog.notice("\nTotal UnitTestsGwLogger_01.js Unit Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
+tlog.notice("\nTotal UnitTestsGwLogger_01.js Unit Tests: " 
+	+ nTests + ", Tests Passed: " + nPassed + "\n\n");
 	
 	

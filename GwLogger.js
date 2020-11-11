@@ -20,7 +20,7 @@ const { ProfileClass } = require("./Profiles");
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 
-const version = "1.2.2";
+const version = "1.2.3";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
@@ -45,8 +45,7 @@ class GwLogger {
 		}
 		// setup env vars, json, or built-ins as defaults
 		this.activeProfile = this.profile.getActiveProfile();
-		this.logLevels = ["OFF", "FATAL", "ERROR", "WARN", "NOTICE", "INFO"
-			, "DEV", "DEBUG", "TRACE", "ALL"];
+		this.logLevels = this.profile.getLogLevels();
 		this.wsSources = {global: "global", custom: "custom"};
 		if (this.profile.isValidStr(this.logLevelStr)) {
 			this.logLevelStr = this.logLevelStr.trim().toUpperCase();
@@ -70,6 +69,7 @@ class GwLogger {
 			this.logLevel = this.logLevels
 				.findIndex(level => level === this.logLevelStr);
 		}
+		this.profile.activeProfile.logLevelStr = this.logLevelStr; 
 		this.moduleName = ""; // short name/description of source file
 		this.timeStampFormat = {};
 		this.timeStampFormat.isEpoch = this.activeProfile.isEpoch;// TS in MS
@@ -79,7 +79,8 @@ class GwLogger {
 		this.sepCharFile = " "; // separator between parts of logfile messages.
 		this.sepCharConsole = " "; // separator between parts of console msgs.
 		this.depthNum = 2;
-		this.isColor = true;
+		this.isColor = this.activeProfile.isColor;
+		this.setIsColor(this.isColor);
 		this.isConsoleTs = this.activeProfile.isConsoleTs;
 		
 		this.isConsole = isConsole === undefined 
@@ -97,13 +98,16 @@ class GwLogger {
 		this.wsSource = (this.fn) 
 			? this.wsSources.custom 
 			: this.wsSources.global;
+		if (this.fn) {
+			this.profile.setFn(this.fn);
+		}
 			
 		this.stateRecord.wsSource = this.wsSource;
 		this.stateRecord.initialActiveProfile = this.activeProfile;
 		
-		if (this.wsSource === this.wsSources.global && this.activeProfile.fn
+		if (this.wsSource === this.wsSources.global && this.profile.getFn()
 				&& this.logLevel > 0 && this.isFile) {
-			this.fn = this.activeProfile.fn;
+			this.fn = this.profile.getFn();
 			this.ensureWriteStream();
 		}
 		else if (this.wsSource === this.wsSources.custom 
@@ -258,6 +262,15 @@ class GwLogger {
 	
 	setIsColor(b) {
 		this.isColor = b;
+		if (b) {
+			red = "\x1b[31m%s\x1b[0m";
+			yellow = "\x1b[33m%s\x1b[0m";
+			green = "\x1b[32m%s\x1b[0m";
+		} else {
+			red = "";
+			yellow = "";
+			green = "";
+		}
 	}
 	
 	getIsColor() {
@@ -276,12 +289,18 @@ class GwLogger {
 	
 	
 
-	setLogLevel(logLevelStr) {
-		let logLevelTmp;
-		logLevelStr = logLevelStr.trim().toUpperCase();
+	setLogLevel(llStr) { // sets string and numeric
+		let logLevelTmp, logLevelStr;
+		if (this.profile.isValidStr(llStr)) {
+			logLevelStr = llStr.trim().toUpperCase();
+		} else {
+			return;
+		}
 		logLevelTmp = this.logLevels.findIndex(level => level === logLevelStr);
 		if (logLevelTmp >= 0 && logLevelTmp < this.logLevels.length) {
 			this.logLevel = logLevelTmp;
+			this.profile.setLogLevel(logLevelStr);
+			this.logLevelStr = logLevelStr;
 		} else {
 			return;
 		}
@@ -290,31 +309,33 @@ class GwLogger {
 		}		
 	}
 	
-	getLogLevel() {
-		return this.logLevels[this.logLevel];
+	getLogLevel() {  // returns a string
+		return this.profile.getLogLevel();
 	}
 	
 	setIsConsole(b) {
 		this.isConsole = b;
+		this.profile.setIsConsole(b);
 	}
 	
 	getIsConsole() {
-		return this.isConsole;
+		return this.profile.getIsConsole();
 	}
 
 	setIsFile(b) {
 		this.isFile = b;
-		if (this.isFile && this.logLevel > 0) {
+		this.profile.setIsFile(b);
+		if (b && this.logLevel > 0) {
 			this.ensureWriteStream();
 		}
 	}
 	
 	getIsFile() {
-		return this.isFile;
+		return this.profile.getIsFile();
 	}
 	
 	getFn() {
-		return this.fn || this.getActiveProfile().fn;
+		return this.profile.getFn();
 	}
 
 	setIsRollAtStartup(b) {
@@ -326,32 +347,33 @@ class GwLogger {
 		
 	// roll by size settings
 	setIsRollBySize(b) {
-		return this.profile.setIsRollBySize(b);
+		return this.profile.setIsRollBySize(this.ucFn, b);
 	}
 	getIsRollBySize() {
 		return this.profile.getIsRollBySize();
 	}
-	//can be set internally by WritePool on an error and differ from profile
+	
+	//can be turned off by WritePool on an error, so may differ from profile!
 	getIsRollBySizeCurrent() { 
 		return writePool.getIsRollBySize(this.ucFn);
 	}
 	
 	setMaxLogSizeKb(kb) { // approx max of each logfile
-		return this.profile.setMaxLogSizeKb(kb);
+		return this.profile.setMaxLogSizeKb(this.ucFn, kb);
 	}
 	getMaxLogSizeKb() {
 		return this.profile.getMaxLogSizeKb();
 	}
 
 	setMaxNumRollingLogs(n) { // how many logfiles to keep
-		return this.profile.setMaxNumRollingLogs(n);
+		return this.profile.setMaxNumRollingLogs(this.ucFn, n);
 	}	
 	getMaxNumRollingLogs() {
 		return this.profile.getMaxNumRollingLogs();
 	}
 
 	setRollingLogPath(p) { // the path to store old logfiles
-		return this.profile.setRollingLogPath(p);
+		return this.profile.setRollingLogPath(this.ucFn, p);
 	}	
 	getRollingLogPath() {
 		return this.profile.getRollingLogPath();
@@ -363,6 +385,10 @@ class GwLogger {
 	
 	getIsQueuing() {
 		return writePool.getIsQueuing(this.ucFn);
+	}
+	
+	getLocalQueueLength() {
+		return writePool.getLocalQueueLength(this.ucFn);
 	}
 	
 	getIsRolling() {
@@ -382,7 +408,7 @@ class GwLogger {
 		}
 		else if (this.wsSource === this.wsSources.global) {
 			// use the default filename and common writeStream
-			this.fn = this.activeProfile.fn;
+			this.fn = this.profile.getFn();
 			this.profile.newProfileWriteStream(this.getFn());								
 		}
 		this.ucFn = this.getFn() 
@@ -413,19 +439,25 @@ class GwLogger {
 	}
 	
 	write2log(logLevelNum, logLevelStr, isColor, msg) {
-		// bufferOk is similar to (sometimes same) as node's stream backpressure.
+		// bufferOk is similar to (usually the same) as stream's backpressure.
 		let bufferOk = true; 
 		let t;
+		/*
 		if (!isColor) {
 			if (Array.isArray(msg)) t = this.formatArgs(msg, false);
 			else t = msg;			
 		}
+		*/
 		let timestamp = GwLogger.getTimeStamp(this.timeStampFormat);
 		if (this.isConsole) {
+			/*
 			if (isColor) {
 				if (Array.isArray(msg)) t = this.formatArgs(msg, true);
 				else t = msg;
 			}
+			*/
+			if (Array.isArray(msg)) t = this.formatArgs(msg, isColor);
+			else t = msg;			
 			let mn = this.moduleName 
 				? logLevelStr + this.sepCharConsole + this.moduleName 
 					+ ":" + this.sepCharConsole 
@@ -457,9 +489,9 @@ class GwLogger {
 				else t = msg;
 			}
 			let txt = this.moduleName 
-				? timestamp + this.sepCharFile + logLevelStr+" " 
-					+ this.moduleName + ": " + t 
-				: timestamp + this.sepCharFile + logLevelStr+": " + t;
+				? timestamp + this.sepCharFile + logLevelStr + this.sepCharFile 
+					+ this.moduleName + ":" + this.sepCharFile + t 
+				: timestamp + this.sepCharFile + logLevelStr+":" + this.sepCharFile + t;
 			try {
 				bufferOk = writePool.write(this.ucFn, txt+"\n");
 			} catch(err) {
@@ -555,9 +587,9 @@ But, found log level of: ${s2}.
 	errWrite03: (s1) =>  {return `ERROR in GwLogger: fn is: ${s1}\n`;},
 };	
 
-const red = "\x1b[31m%s\x1b[0m";
-const yellow = "\x1b[33m%s\x1b[0m";
-const green = "\x1b[32m%s\x1b[0m";
+let red = "\x1b[31m%s\x1b[0m";
+let yellow = "\x1b[33m%s\x1b[0m";
+let green = "\x1b[32m%s\x1b[0m";
 
 
 exports.GwLogger = GwLogger;

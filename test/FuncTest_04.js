@@ -1,4 +1,5 @@
 "use strict";
+console.log("****************     starting FT_04 **************************");
 /*
 import { GwLogger } from "../GwLogger.js";
 */

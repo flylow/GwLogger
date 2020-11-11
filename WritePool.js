@@ -9,7 +9,7 @@
  * 
 */
 // exceptions to ESLint no-init rule
-/*global module, console, setTimeout, require */
+/*global module, console, setTimeout, clearTimeout, require */
 
 const createWriteStream = require("fs").createWriteStream;
 const watch = require("fs").watch;
@@ -23,7 +23,7 @@ const moveFile = require("./fsprom.js").moveFile;
 const unlinkFile = require("./fsprom.js").unlinkFile;
 const accessFile = require("./fsprom.js").accessFile;
 
-const version = "1.2.2";
+const version = "1.2.3";
 
 /*
 Most buffering occurs inside the stream object, as usual for writestreams. 
@@ -164,6 +164,12 @@ class WritePool {
 	}
 	
 	// test instrumentation
+	getLocalQueueLength(ucFn) { 
+		if (!logFiles || !logFiles[ucFn]) return null;
+		return logFiles[ucFn].localQueue.length;
+	}
+	
+	// test instrumentation
 	getIsRolling(ucFn) {
 		if (!logFiles || !logFiles[ucFn] || logFiles[ucFn].isRolling === undefined
 			|| logFiles[ucFn].isRolling === null) {
@@ -230,6 +236,9 @@ class WritePool {
 	// ws is writeStream, ucFn is upper-case-filename
 	getNeedToRollSize(ws, ucFn) {
 		let currentSize = 0;
+		if (logFiles[ucFn] && logFiles[ucFn].isRolling) {
+			return false; // already rolling...
+		}
 		// ws may be undefined at startup, so ws buffer regarded as empty; 
 		if (ucFn && !ws) { 
 			if (logFiles[ucFn].startSizeKb  > logFiles[ucFn].maxLogSizeKb) {
@@ -250,38 +259,52 @@ class WritePool {
 		}
 	}	
 	
+	checkRollingFile(ucFn) {
+		let ws;
+		if (logFiles[ucFn]
+				&& logFiles[ucFn].isRollBySize 
+				&& !logFiles[ucFn].isRolling 
+				&& !logFiles[ucFn].isInRecovery 
+				&& logFiles[ucFn].maxLogSizeKb > 0 
+				&& logFiles[ucFn].maxNumRollingLogs > 0) {
+			ws = (writeStreams[ucFn]) 
+				? writeStreams[ucFn].ws 
+				: null;
+			if (ws && !writeStreams[ucFn].ready) {
+				return; // don't interrupt stream creation, rolling can wait.
+			}
+			if (this.getNeedToRollSize(ws, ucFn)) {
+				//++++++++ Need to roll due to size
+				this.preRollFiles(ucFn);
+			}
+		}		
+	}
 	// Check to see if it is time to roll	
 	checkRollingFiles() { 
-		let ws;
 		for (let ucFn in logFiles) {
-			if (logFiles[ucFn].isRollBySize 
-					&& !logFiles[ucFn].isRolling 
-					&& !logFiles[ucFn].isInRecovery 
-					&& logFiles[ucFn].maxLogSizeKb > 0 
-					&& logFiles[ucFn].maxNumRollingLogs > 0) {
-				ws = writeStreams[ucFn].ws;
-				if (ws && !writeStreams[ucFn].ready) {
-					continue;
-				}
-				if (this.getNeedToRollSize(ws, ucFn)) {
-					//++++++++ Need to roll due to size
-					this.preRollFiles(ucFn);
-				}
-			}
+			this.checkRollingFile(ucFn);
 		}
 	}
 	
 	// The mostly-synchronous prelude to async rollFiles
 	preRollFiles(ucFn) {
+		if (logFiles[ucFn].isRolling) {
+			return;
+		}
 		logFiles[ucFn].isRolling = true;
 		logFiles[ucFn].isQueuing = true;
 		const fn = logFiles[ucFn].fn;		
 		const ws = (writeStreams[ucFn] && writeStreams[ucFn].ws) 
 			? writeStreams[ucFn].ws 
-			: null;			
+			: null;	
+		// timer will keep app alive if rolling incomplete when app ends normally
+		const timer = setTimeout(() => {
+			console.error("Timer in preRollFiles expired after 1 hour.");
+		}, 360000);			
 		const p = new Promise( (resolve) => {
 			let needNewStream = this.rollFiles(ucFn, ws, fn);
 			resolve(needNewStream);
+			clearTimeout(timer);			
 		});
 		p.then((needNewStream) => {
 			if (needNewStream || ws === null) {
@@ -307,7 +330,11 @@ class WritePool {
 			// An unanticipated error, likely in moveFile			
 			// Try to recover without bringing down the application
 			// make sure there is a logfile at very least, clean-up and exist
-			console.error(msg.warNoRoll01(fn), err);			
+			console.error(msg.warNoRoll01(fn), err);
+			console.error("Error in rollFiles for file: ",fn
+				,"\nnewPath is: ",nuFname,
+				"\nisTrunc is: ", ucFn
+				,"\nError was: ",err);
 			logFiles[ucFn].isRollBySize = false; // turn off rolling for logfile 						
 			if (ws) ws.end();
 			return true; // exit rollFiles and do rollNewStream
@@ -350,7 +377,7 @@ class WritePool {
 	async rollLogfile(fn, nuFname, ucFn, ws) {
 		const typeOfMove = await moveFile(fn, nuFname, true);
 		if (!typeOfMove || typeOfMove === "none") { 
-			throw("typeOfMoveIsNone"); // is caught in rollFiles method
+			throw("typeOfMoveIsNone"); // caught by caller (rollFiles) method
 		} else if (typeOfMove === "trunc") { // truncated fn
 			logFiles[ucFn].truncate = true;
 			logFiles[ucFn].startSizeKb = 0;
@@ -549,8 +576,12 @@ class WritePool {
 			return;
 		}
 		// stream may not exist yet, but file might, see if it needs rolled		
-		else if (activeProfile.isRollBySize && this.getNeedToRollSize(null, ucFn)) {
-			return this.preRollFiles(ucFn); // perform rolling of logfiles
+		else if (activeProfile.isRollBySize) {
+			// perform rolling of logfiles and create a new stream
+			this.checkRollingFile(ucFn);
+			if (!logFiles[ucFn].isRolling) {
+				return this.getRegisteredStream(fn, replace);
+			} else return;
 		} 
 		else {
 			return this.getRegisteredStream(fn, replace);

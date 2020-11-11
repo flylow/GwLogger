@@ -3,6 +3,7 @@ SET GWL_logLevelStr=FATAL
 SET GWL_fn=./logfiles/EnvTest.log
 SET GWL_isFile=false
 SET GWL_isConsole=true
+SET GWL_isColor=true
 SET GWL_isEpoch=false
 SET GWL_nYr=1
 SET GWL_isShowMs=false

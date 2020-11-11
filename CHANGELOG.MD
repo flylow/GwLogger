@@ -11,5 +11,7 @@ Change Log for @flylow/GwLogger
 | 1.2.0 | 2020:10:20 | Added rolling logs at startup.  Fixes for [Rolling files to network drives, issue 3](https://github.com/flylow/GwLogger/issues/3 "Rolling files to network drives, issue 3"), and [Changing rolling settings prior to activating logger causes exception, issue 4](https://github.com/flylow/GwLogger/issues/4 "Changing rolling settings prior to activating logger causes exception, issue 4") |
 | 1.2.1 | 2020-10-28 | Separate msgs from code, try/catch fixes, minor edits |
 | 1.2.2 | 2020-10-30 | Docs fix, Fix README API description for setIsRollAtStart |
+| 1.2.3 | 2020-11-11 | Minor bug fixes and coding/testing improvements. |
+
 
 

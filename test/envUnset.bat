@@ -3,6 +3,7 @@ SET GWL_logLevelStr=
 SET GWL_fn=
 SET GWL_isFile=
 SET GWL_isConsole=
+SET GWL_isColor=
 SET GWL_isEpoch=
 SET GWL_nYr=
 SET GWL_isShowMs=

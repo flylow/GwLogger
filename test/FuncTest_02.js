@@ -1,5 +1,5 @@
 "use strict";
-
+console.log("****************     starting FT_02 **************************");
 /*
 // ------------   If using import (file must be renamed .mjs) -----------------
 import sa from "assert";

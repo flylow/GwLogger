@@ -17,7 +17,7 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
-const version = "1.2.2";
+const version = "1.2.3";
 
 class Profiles {
 
@@ -29,6 +29,7 @@ class Profiles {
 			};
 		this.isConsoleTsDefault = false; // console timestamps
 		this.isConsoleDefault = false;
+		this.isColorDefault = true;
 		this.isFileDefault = true;
 		this.isRollAtStartup = false;
 		this.isRollBySize = false;
@@ -66,7 +67,7 @@ class Profiles {
 		
 	} // End of constructor
 	
-	getVersion() {
+	static getVersion() { 
 		return version;
 	}
 	
@@ -129,6 +130,7 @@ class Profiles {
 				logLevelStr: this.logLevelDefault
 				, isFile: this.isFileDefault
 				, isConsole: this.isConsoleDefault
+				, isColor: this.isColorDefault
 				, fn: this.fnDefault
 				, isEpoch: this.tsFormatDefaults.isEpoch
 				, isLocalTz: this.tsFormatDefaults.isLocalTz
@@ -179,6 +181,39 @@ class Profiles {
 		return ["OFF", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEV", "DEBUG"
 			, "TRACE", "ALL"];
 	}
+	
+	// Assumes parameter is valid
+	setLogLevel(logLevelStr) {
+		this.activeProfile.logLevelStr = logLevelStr;	
+	}
+	
+	getLogLevel() {
+		return this.activeProfile.logLevelStr;
+	}
+
+	setIsFile(b) {
+		this.activeProfile.isFile = b;
+	}
+	
+	getIsFile() {
+		return this.activeProfile.isFile;
+	}
+	
+	setIsConsole(b) {
+		this.activeProfile.isConsole = b;
+	}
+	
+	getIsConsole() {
+		return this.activeProfile.isConsole;
+	}	
+	
+	setFn(path) { // assumes valid path
+		this.activeProfile.fn = path;
+	}
+	
+	getFn() {
+		return this.activeProfile.fn;
+	}	
 	
 	Str2NumLogLevel(levelStr) {
 		let logLevelStr = levelStr.trim().toUpperCase();
@@ -246,12 +281,13 @@ class Profiles {
 		this.activeProfile = p;
 	}
 		
-	storeProfileData(logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr
+	storeProfileData(logLevelStr, isFile, isConsole, isColor, fn, isEpoch, isLocalTz, nYr
 			, isShowMs, isConsoleTs, isRollAtStartup, isRollBySize, maxLogSizeKb
 			, maxNumRollingLogs, rollingLogPath) {
 		// Will overwrite existing profile data, if any
 		this.activeProfile = {fn: fn, logLevelStr: logLevelStr, 
-			isFile: isFile, isConsole: isConsole, isEpoch: isEpoch
+			isFile: isFile, isConsole: isConsole, isColor: isColor
+			, isEpoch: isEpoch
 			, isLocalTz: isLocalTz, nYr: nYr,
 			isShowMs: isShowMs, isConsoleTs: isConsoleTs
 			, isRollAtStartup: isRollAtStartup, isRollBySize: isRollBySize
@@ -268,96 +304,86 @@ class Profiles {
 			console.warn(yellow, msg.warRedef01, stack);
 			return null; // unable to set previously defined stream.
 		}
-		let logLevelStr = profileCandidate.logLevelStr;
+		let logLevelStr = profileCandidate.logLevelStr;		
 		if (!this.isValidStr(logLevelStr)) {
-			let stack = this.getStackTrace(new Error());			
-			console.error(red, msg.errNoLL01(this.getLogLevels().join())
-				+ "\n",stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errNoLL01(this.getLogLevels().join()));
+			throw err;
 		}
 		logLevelStr = logLevelStr.trim().toUpperCase();
-		let logLevelTmp = this.Str2NumLogLevel(logLevelStr);
+		let logLevelTmp = this.Str2NumLogLevel(logLevelStr);		
 		if (logLevelTmp < 0 || logLevelTmp > (this.getLogLevels().length - 1) ) {
-			let stack = this.getStackTrace(new Error());			
-			console.error(red, msg.errNoLL02(logLevelStr, this.getLogLevels().join())
-			+ "\n",stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errNoLL02(logLevelStr
+				, this.getLogLevels().join()));
+			throw err;	
 		}
-		let fn = profileCandidate.fn;
+		let fn = profileCandidate.fn;		
 		if (!this.isValidStr(fn)) {
-			let stack = this.getStackTrace(new Error());			
-			console.error(red + msg.errNoLog04, stack);
-			process.exit(1); // All stop			
+			let err = new Error(msg.errNoLog04);
+			throw err;						
 		}
 		fn = fn.trim();
 		this.ucFn = writePool.getUcFn(fn);
-		let isFile = profileCandidate.isFile;
+		let isFile = profileCandidate.isFile;	
 		if (typeof isFile !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isFile", isFile), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isFile", isFile));
+			throw err;	
 		}	
-		let isConsole = profileCandidate.isConsole;
+		let isConsole = profileCandidate.isConsole;			
 		if (typeof isConsole !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isConsole", isConsole), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isConsole", isConsole));
+			throw err;
 		}
-		let isEpoch = profileCandidate.isEpoch;
+		let isColor = profileCandidate.isColor;	
+		if (typeof isColor !== "boolean") {
+			let err = new Error(msg.errPTF01("isColor", isColor));
+			throw err;	
+		}		
+		let isEpoch = profileCandidate.isEpoch;			
 		if (typeof isEpoch !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isEpoch", isEpoch), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isEpoch", isEpoch));
+			throw err;
 		}
-		let isLocalTz = profileCandidate.isLocalTz;
+		let isLocalTz = profileCandidate.isLocalTz;		
 		if (typeof isLocalTz !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isLocalTz", isLocalTz), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isLocalTz", isLocalTz));
+			throw err;
 		}
-		let nYr = profileCandidate.nYr;
+		let nYr = profileCandidate.nYr;	
 		if (nYr > 4 || nYr < 0) {
-			let err = new Error();
-			console.error(red, msg.errYr01(nYr), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errYr01(nYr));
+			throw err;	
 		}
-		let isShowMs = profileCandidate.isShowMs;
+		let isShowMs = profileCandidate.isShowMs;		
 		if (typeof isShowMs !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isShowMS", isShowMs), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isShowMS", isShowMs));
+			throw err;	
 		}
-		let isConsoleTs = profileCandidate.isConsoleTs;
+		let isConsoleTs = profileCandidate.isConsoleTs;	
 		if (typeof isConsoleTs !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isConsoleTs", isConsoleTs), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isConsoleTs", isConsoleTs));
+			throw err;
 		}
 		
-		let isRollAtStartup = profileCandidate.isRollAtStartup;
+		let isRollAtStartup = profileCandidate.isRollAtStartup;	
 		if (typeof isRollAtStartup !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isRollAtStartup", isRollAtStartup), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isRollAtStartup", isRollAtStartup));
+			throw err;	
 		}		
 
-		let isRollBySize = profileCandidate.isRollBySize;
+		let isRollBySize = profileCandidate.isRollBySize;		
 		if (typeof isRollBySize !== "boolean") {
-			let err = new Error();
-			console.error(red, msg.errPTF01("isRollBySize", isRollBySize), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errPTF01("isRollBySize", isRollBySize));
+			throw err;	
 		}
-		let maxLogSizeKb = profileCandidate.maxLogSizeKb;
+		let maxLogSizeKb = profileCandidate.maxLogSizeKb;			
 		if (maxLogSizeKb < 0) {
-			let err = new Error();
-			console.error(red, msg.errLs01(maxLogSizeKb), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errLs01(maxLogSizeKb));
+			throw err;
 		}
-		let maxNumRollingLogs = profileCandidate.maxNumRollingLogs;
+		let maxNumRollingLogs = profileCandidate.maxNumRollingLogs;	
 		if (maxNumRollingLogs > 20 || maxNumRollingLogs < 0) {
-			let err = new Error();
-			console.error(red, msg.errNl01(maxNumRollingLogs), err.stack);
-			process.exit(1); // All stop
+			let err = new Error(msg.errNl01(maxNumRollingLogs));
+			throw err;	
 		}
 		let rollingLogPath;
 		rollingLogPath = (profileCandidate.rollingLogPath) 
@@ -366,9 +392,8 @@ class Profiles {
 		if ((isRollAtStartup || isRollBySize || rollingLogPath) 
 				&& (!this.isValidStr(rollingLogPath) 
 					|| !existsSync(rollingLogPath)) ) { 
-			let stack = this.getStackTrace(new Error());			
-			console.error(red, msg.errRp01(rollingLogPath),stack);
-			process.exit(1); // All stop			
+			let err = new Error(msg.errRp01(rollingLogPath));
+			throw err;						
 		}
 		if (maxLogSizeKb === 0 || maxNumRollingLogs === 0) {
 			isRollBySize = false;
@@ -376,7 +401,7 @@ class Profiles {
 		
 		if (!this.activeProfile) {
 			this.storeProfileData(
-				logLevelStr, isFile, isConsole, fn, isEpoch, isLocalTz, nYr
+				logLevelStr, isFile, isConsole, isColor, fn, isEpoch, isLocalTz, nYr
 				, isShowMs, isConsoleTs, isRollAtStartup, isRollBySize
 				, maxLogSizeKb, maxNumRollingLogs, rollingLogPath );
 			return;
@@ -392,53 +417,54 @@ class Profiles {
 	}	
 	
 	// roll by size settings
-	setIsRollBySize(b) {
+	setIsRollBySize(ucFn, b) {
 		if (typeof b !== "boolean") {
 			return null;
 		}
 		this.activeProfile.isRollBySize = b;
-		writePool.setIsRollBySize(this.ucFn, b);
+		writePool.setIsRollBySize(ucFn, b);
 		return b;
 	}
 	getIsRollBySize() {
 		return this.activeProfile.isRollBySize;
 	}	
-	getIsRollBySizeCurrent() { //can be set internally by WritePool on an error
-		return writePool.getIsRollBySize(this.ucFn);
+	getIsRollBySizeCurrent(ucFn) { //can be set internally by WritePool on an error
+		return writePool.getIsRollBySize(ucFn);
 	}
 	
-	setMaxLogSizeKb(kb) { // approx max of each logfile
+	setMaxLogSizeKb(ucFn, kb) { // approx max of each logfile
 		if (kb < 0) { 
 			return null;
 		}
+		this.maxLogSizeKb = kb;
 		this.activeProfile.maxLogSizeKb = kb;		
-		writePool.setMaxLogSizeKb(this.ucFn, kb);
+		writePool.setMaxLogSizeKb(ucFn, kb);
 		return kb;
 	}
 	getMaxLogSizeKb() {
 		return this.activeProfile.maxLogSizeKb;
 	}
 
-	setMaxNumRollingLogs(n) { // how many logfiles to keep
+	setMaxNumRollingLogs(ucFn, n) { // how many logfiles to keep
 		if (n > 20 || n < 0) {
 			return null;
 		}
 		this.activeProfile.maxNumRollingLogs = n;
-		writePool.setMaxNumRollingLogs(this.ucFn, n);
+		writePool.setMaxNumRollingLogs(ucFn, n);
 		return n;
 	}	
 	getMaxNumRollingLogs() {
 		return this.activeProfile.maxNumRollingLogs;
 	}
 
-	setRollingLogPath(rollingLogPath) {
+	setRollingLogPath(ucFn, rollingLogPath) {
 		rollingLogPath = rollingLogPath.trim();
 		rollingLogPath = path.resolve(rollingLogPath);
 		if (!existsSync(rollingLogPath) ) {
 			return false; // bad path
 		}
 		this.activeProfile.rollingLogPath = rollingLogPath;
-		writePool.setRollingLogPath(this.ucFn, rollingLogPath);
+		writePool.setRollingLogPath(ucFn, rollingLogPath);
 		return this.activeProfile.rollingLogPath;
 	}	
 	getRollingLogPath() {
@@ -464,7 +490,6 @@ const msg = {
 	errRp01: (s1) => {return `ERROR: Rolling logs require an existing logfile directory, but ${s1} does not exist.\n`;}
 };	
 
-const red = "\x1b[31m%s\x1b[0m";
 const yellow = "\x1b[33m%s\x1b[0m";
 
 

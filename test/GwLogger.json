@@ -3,6 +3,7 @@
 	"logLevelStr": "OFF",
 	"isFile": true,
 	"isConsole": false,
+	"isColor": true,
 	"isConsoleTs": false,
 	"isEpoch": false,
 	"nYr": 0,

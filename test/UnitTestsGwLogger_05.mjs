@@ -8,14 +8,17 @@ const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
 
-const versionRef = "1.2.2"; // set to target version of GwLogger for test of getVersion method.
+const versionRef = "1.2.3"; // set to target version of GwLogger
 	
-const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
+const tlog = new GwLogger("notice", true, true
+	, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_05");
-tlog.notice("===> UnitTestsGwLogger_05.mjs is running, results logfile is: ./logfiles/Unit Test Results.log");
+tlog.notice("===> UnitTestsGwLogger_05.mjs is running, results logfile is: "
+	+ "./logfiles/Unit Test Results.log");
 
 // Startup API test
-const logger = new GwLogger("DEBUG", false, false, "./logfiles/Profile Param Test Log.log");
+const logger = new GwLogger("DEBUG", false, false
+	, "./logfiles/Profile Param Test Log.log");
 logger.setIsRollBySize(false);
 logger.setMaxNumRollingLogs(5);
 logger.setRollingLogPath("./rolledfiles");
@@ -29,14 +32,15 @@ const showStackTrace = true;
 let nTests = 0; // # of tests attempted
 let nPassed = 0;
 
-// Included here to ensure we are testing correct version.
+// UT_01 tests all source versions, so this only needs to test any one source.
+// Will test instance against static. Main thing is to ensure startup of logger.
 const test_getVersion = function() {
 	nTests++;
 	try {
-	const ver = GwLogger.getVersion(); // static method actually holds version value
-	const ver2 = tlog.getVersion(); // instance method will also call static method
+	const ver = GwLogger.getVersion(); // both static and instance methods exist
+	const ver2 = tlog.getVersion(); // instance method
 	assert.equal(ver, versionRef);
-	assert.equal(ver, ver2); // make sure both methods are working okay and the same.
+	assert.equal(ver, ver2);
 	nPassed++;
 	tlog.info("test_getVersion with ES6 Imports Passed!");
 	} catch(err) {
@@ -47,6 +51,7 @@ const test_getVersion = function() {
 
 test_getVersion();
 
-tlog.notice("\nTotal UnitTestsGwLogger_05.mjs Unit Tests: " + nTests + ", Tests Passed: " + nPassed + "\n\n");
+tlog.notice("\nTotal UnitTestsGwLogger_05.mjs Unit Tests: " + nTests 
+	+ ", Tests Passed: " + nPassed + "\n\n");
 	
 	

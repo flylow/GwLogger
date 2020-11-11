@@ -10,7 +10,7 @@
 	"isShowMs": true,
 	"isRollAtStartup": true, 
 	"isRollBySize": true,
-	"maxLogSizeKb": 100,
-	"maxNumRollingLogs": 22,
+	"maxLogSizeKb": 50,
+	"maxNumRollingLogs": 20,
 	"rollingLogPath": "./rolledFiles"
 }

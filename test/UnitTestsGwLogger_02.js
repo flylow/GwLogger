@@ -1,5 +1,7 @@
 "use strict";
-/*global console, process, require */ // A directive for exceptions to ESLint no-init rule
+
+// A directive for exceptions to ESLint no-init rule
+/*global console, process, require */ 
 
 const GwLogger = require("../GwLogger").GwLogger;
 const existsSync = require("fs").existsSync;
@@ -11,11 +13,13 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.2"; // version number of targeted GwLogger.
+const versionRef = "1.2.3"; // version number of targeted GwLogger.
 	
-const tlog = new GwLogger("notice", true, true, "./logfiles/Unit Test Results.log");
+const tlog = new GwLogger("notice", true, true
+	, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
-tlog.notice("===> UnitTestsGwLogger_02.js is running, results logfile is: ", tlog.getFn()); //./logfiles/Unit Test Results.log
+tlog.notice("===> UnitTestsGwLogger_02.js is running, results logfile is: "
+	, tlog.getFn()); //./logfiles/Unit Test Results.log
 	
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
@@ -29,6 +33,7 @@ function replacer(key, value) {
   return value;
 }
 
+// UT_01 tests all source versions, so this only needs to test any one source.
 const test_getVersion = function() {	
 	nTests++;
 	try {
@@ -55,22 +60,28 @@ const test_creationStories = function() {
 	try {
 		let isLogExists = existsSync("./logfiles/logJsonFile.log");
 		assert.ok(!isLogExists); // verify disappearance
-		const loggerTest1 = new GwLogger(); // should NOT create new log file (yet)
+		const loggerTest1 = new GwLogger();// should NOT create new log file (yet)
 		const fn = loggerTest1.getFn();
-		assert.ok(fn === "./logfiles/logJsonFile.log", "fn was: ", fn); // ensure deleted correct one
+		 // ensure we disappeared the correct one
+		assert.ok(fn === "./logfiles/logJsonFile.log", "fn was: ", fn);
 		isLogExists = existsSync(fn);
 		assert.ok(!isLogExists);
-		loggerTest1.setLogLevel("info"); // should create logfile since loglevel no longer "OFF"
-		loggerTest1.setIsFile(true);
+		// now chg loglevel and enable logfile since loglevel no longer "OFF"
+		loggerTest1.setLogLevel("info"); 
+		loggerTest1.setIsFile(true); // final step to enable logfile creation.
 		loggerTest1.setIsConsole(true);
 		isLogExists = existsSync(fn);
-		loggerTest1.debug("Hello from UnitTestsGwLogger_02, test_creationStories");
+		loggerTest1.debug("Hello from UnitTestsGwLogger_02, "
+			+ "test_creationStories");
 		
 		
 		assert.ok(isLogExists);
-		let log4UT_04 = new GwLogger( { profileFn: "./GwLogger_Profile Param Test Log.json" } );
+		let log4UT_04 = new GwLogger({
+			profileFn: "./GwLogger_Profile Param Test Log.json" 
+		});
 		log4UT_04.setModuleName("UT_02");	
-		log4UT_04.notice("log4UT_04 is created now to meet a dependency for a later test, UT_04's isRollAtStartup");
+		log4UT_04.notice("log4UT_04 is created now to meet a dependency "
+			+ "for a later test, UT_04's isRollAtStartup");
 		nPassed++;
 		tlog.info("test_creationStories Passed!");
 	} catch(err) {
@@ -79,12 +90,14 @@ const test_creationStories = function() {
 	}	
 };
 
-// Here is a set of profile data to use in test_getJsonProfile. Must be same as test/GwLogger.json!!!
+// Here is a set of profile data to use in test_getJsonProfile. 
+// Must be the same as current profile test/GwLogger.json!!!
 let jsonDefTest2 = {
 	"fn": "./logfiles/logJsonFile.log",
 	"logLevelStr": "OFF",
 	"isFile": true,
 	"isConsole": false,
+	"isColor": true,
 	"isConsoleTs": false,
 	"isEpoch": false,
 	"nYr": 0,
@@ -97,24 +110,27 @@ let jsonDefTest2 = {
 	"rollingLogPath": path.resolve("./rolledFiles")
 	};
 
-const logTest_Profile = new GwLogger(); // get a clean logger that reads test directory's default json profile, ./GwLogger.json
+// get a clean logger that reads this app's (test's) directory default 
+// json profile, ./GwLogger.json
+const logTest_Profile = new GwLogger(); 
 profiles = logTest_Profile.getProfilesInstance(); // get this instance of profiles
 
 // Test the function that loads profile data from GwLogger.json profile.	
 const test_getJsonProfile = function() {
 	nTests++;
 	try {
-		let jsonDefTestStr = JSON.stringify(jsonDefTest2, replacer, 2); // hides huge gwWriteStream from compare, which varies every time.
+		let jsonDefTestStr = JSON.stringify(jsonDefTest2, replacer, 2);
 		jsonDefTest = JSON.parse(jsonDefTestStr);
 	//	console.log("jsonDefTest2 is: ", jsonDefTest2);
-		let jsonReturn = profiles.getActiveProfile(); // try to get a copy of current settings
+		let jsonReturn = profiles.getActiveProfile(); // get current settings
 	//	console.log("jsonReturn:",jsonReturn);
-		let jsonReturnStr = JSON.stringify(jsonReturn, replacer, 2); // hide gwWriteStream prior to comparison
+		let jsonReturnStr = JSON.stringify(jsonReturn, replacer, 2);
 		jsonReturn = JSON.parse(jsonReturnStr);
 	//	console.log("---- jsonDefTest2, jsonReturn ------------");
 	//	console.log(jsonDefTest, "\n",jsonReturn);
-	//	console.log("---- END END jsonDefTest2, jsonReturn ------------");		
-		assert.deepStrictEqual(jsonDefTest2, jsonReturn); // Compare what is stored with what we expected
+	//	console.log("---- END END jsonDefTest2, jsonReturn ------------");
+	// Compare what is stored with what we expected	
+		assert.deepStrictEqual(jsonDefTest2, jsonReturn); 
 		tlog.info("test_getJsonProfile Passed!");
 		nPassed++;
 	//	console.log("test_getJsonProfile Passed!");
@@ -146,10 +162,9 @@ const test_createActiveProfile = function() {
 	nTests++;
 	try {
 		profiles.createActiveProfile(jsonDefTest); // save the test data
-		let jsonDefTestStr = JSON.stringify(jsonDefTest, replacer, 2); // hides huge gwWriteStream from compare, which varies every time.
-		//let jsonReturn = profiles.getActiveProfile(); // try to get a copy of current settings
-		let jsonReturnStr = JSON.stringify(jsonDefTest, replacer, 2); // hide gwWriteStream prior to comparison
-		assert.deepStrictEqual(jsonDefTestStr, jsonReturnStr); // Compare what is stored with what we expected
+		let jsonDefTestStr = JSON.stringify(jsonDefTest, replacer, 2);
+		let jsonReturnStr = JSON.stringify(jsonDefTest, replacer, 2);
+		assert.deepStrictEqual(jsonDefTestStr, jsonReturnStr);
 		tlog.info("test_createActiveProfile Passed!");
 		nPassed++;
 	} catch(err) {
@@ -158,8 +173,9 @@ const test_createActiveProfile = function() {
 	}
 };
 
-// Tests the function that converts the user's requested log level to an integer value.
-// Conversion should not be case-sensitive, and should correctly return the numeric level 0-9.
+// Tests the function that converts the user's requested log level to an 
+// integer value for each log level. Conversion should not be case-sensitive, 
+// and should correctly return the numeric level 0-9.
 // Function should recognize and reject non-existent log levels.
 const test_Str2NumLogLevel = function() {
 	nTests++;
@@ -199,20 +215,21 @@ const test_Str2NumLogLevel = function() {
 	
 };
 
-// Tests the function that generates and formats timestamps. A lot of detail herein.
-//getTimeStamp(tsFormat)
+// Tests the function that generates and formats timestamps. 
+// A lot of detail herein.
 const test_getTimeStamp = function() {
 	nTests++;
 	let ts;
 	let timeStampFormat = {};
-	timeStampFormat.isEpoch = true; // timestamps will be milliseconds since 1/1/1970 UTC
+	timeStampFormat.isEpoch = true; // timestamps will be MS since 1/1/1970 UTC
 	timeStampFormat.isLocalTz = true; // use local time (if false, will use UTC)
 	timeStampFormat.isShowMs = true; // show the milliseconds?
-	timeStampFormat.nYr = 0; // number of digits to show for the year in timestamps 0-4	
+	timeStampFormat.nYr = 0; // number of digits for the year in timestamps, 0-4	
 	try {
 		ts = GwLogger.getTimeStamp(timeStampFormat);
 		let testTs = Date.now();
-		assert.ok(typeof ts === "number" && ts > 1594568938531 && testTs >= ts); // the number is an epoch TS from an earlier time than the test
+		// the constant number is a TS from an definite earlier time than the test
+		assert.ok(typeof ts === "number" && ts > 1594568938531 && testTs >= ts); 
 		tlog.info("Epoch subtest passed");
 		timeStampFormat.isEpoch = false;
 		timeStampFormat.isLocalTz = false;
@@ -250,11 +267,11 @@ const test_getTimeStamp = function() {
 // Test the function that evaluates file names for a new profile.
 // This should fail and hit the catch
 const test_profileFileNameErrors = function() {
-	tlog.info("The next test, test_profileFileNameErrors, should throw an error!!");
+	tlog.info("Next, the test_profileFileNameErrors should throw an error!!");
 	let bkup_profiles;
 	nTests++;
 	try {
-		let fn = "./bogus/XXdirectoryXX/myLogFile.log"; // A non-existant directory
+		let fn = "./bogus/XXdirectoryXX/myLogFile.log"; // non-existant directory
 		bkup_profiles = profiles.getProfileData(); // save the existing 
 		profiles.deleteProfileData();
 		profiles.newProfileWriteStream(fn);
@@ -270,26 +287,31 @@ const test_profileFileNameErrors = function() {
 // Test the function that evaluates file names for a custom logfile.
 // This should fail and hit the catch in order to pass the test
 const test_customFileNameErrors = function() {
-	tlog.info("The next test, test_customFileNameErrors, should throw an error!!");
+	tlog.info("The next test, test_customFileNameErrors, will throw an error!!");
 	nTests++;
 	try {
-		let fn = "./bogus/XXdirectoryXX/myLogFile.log"; // A non-existant directory
+		let fn = "./bogus/XXdirectoryXX/myLogFile.log"; // non-existant directory
 		profiles.newCustomWriteStream(fn);	
-		tlog.error("Fail TESTING: test_customFileNameErrors"); // shouldn't get here
+		tlog.error("Fail TESTING: test_customFileNameErrors");
 	} catch(err) {
 		tlog.info("test_customFileNameErrors Passed!");
 		nPassed++;
 	}
 };
 
-// Test that the pool returns the same stream for two distinct custom loggers, as long as using the same logfile.
+// Test that writepool returns the same stream for two distinct custom loggers, 
+// as long as using the same logfile.
 const test_customStreamPools = function() {
-	let logger = new GwLogger("trace", false, true, "./logfiles/logJsonFile.log"); // same logfile as tlog.
-	logger.trace("This logger named 'logger' from UT_01 exists only to ensure logJsonFile profile exists for test_customStreamPools test case.");
+	let logger = new GwLogger("trace", false, true
+		, "./logfiles/logJsonFile.log"); // same logfile as tlog.
+	logger.trace("This logger named 'logger' from UT_02 exists only to ensure "
+		+ "logJsonFile profile exists for test_customStreamPools test case.");
 	nTests++;
 	try {
-		let streamTlog = profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
-		let streamLogger = profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
+		let streamTlog = 
+			profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
+		let streamLogger 
+			= profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
 		assert.deepStrictEqual(streamTlog, streamLogger); 
 		tlog.info("test_customStreamPools Passed! process.cwd()=", process.cwd());
 		nPassed++;
@@ -312,9 +334,11 @@ test_getVersion();
 test_creationStories();
 test_getJsonProfile();
 
-// Prep for tests that target saved profile and default settings
-// setSavedDefaults does not allow overwrites, so we must go to the global and delete the previously saved data.
-	profiles.deleteProfileData();
+// Prep for tests that target saved profile and default settings.
+// setSavedDefaults does not allow overwrites, so we must go to the profiles 
+// class and delete the previously saved data.
+profiles.deleteProfileData(); //Profiles methods are only test instrumentation
+
 test_createActiveProfile();
 test_Str2NumLogLevel();
 test_getTimeStamp();
@@ -323,6 +347,7 @@ test_customFileNameErrors();
 test_customStreamPools();
 
 
-tlog.notice("\nTotal UnitTestsGwLogger_02.js Unit Tests: " + nTests + ", Tests Passed: " + nPassed+"\n\n");
+tlog.notice("\nTotal UnitTestsGwLogger_02.js Unit Tests: " + nTests 
+	+ ", Tests Passed: " + nPassed+"\n\n");
 
 

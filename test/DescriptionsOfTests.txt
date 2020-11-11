@@ -40,6 +40,7 @@
 		test_setSepChar();
 		test_setLogLevel();
 		test_setIsConsole();
+		test_setIsColor();
 		test_setIsFile();
 		test_getFn();
 	gwlogger\test>node UnitTestsGwLogger_01.js	
@@ -122,21 +123,26 @@
 		16. In logfile, separation character is now '#', and the module name is back.
 		17. returned to a space for separation character in logfile, and removed module name.
 		18. Simply must log at TRACE loglevel.
+		19-22. Console messages should all be monochrome via setIsColor(false)
+		23-26. Console messages should be color (default, and setIsColor(true))
+		27. ModuleName should be the name of the test file, "functest_03".
 	gwlogger\test>node FuncTest_03.js	
 		
  9.	FuncTest_04.js, helps test formatted output, 
 	such as log.info("the meaning of life is: ", {meaningOfLife: {love: true, health: 8, money: 5} } );		
-	gwlogger\test>node FuncTest_04.js	
+		gwlogger\test>node FuncTest_04.js	
 
 	
- 10.EnduroGwLogger.js, Not a unit or functional test, more a stress test, intended for running long periods 
-	to look for memory leaks or problems logging to slower drives, or to LAN drives. Uses back-pressure 
-	indicator to keep logging near maximum rate for long periods with rolling logfiles. Currently uses
-	500,000 iterations for a complete run, which may take a few hours to overnight depending on the
-	speed of the test machine and its logging drive(s). To run a shorter version, change the variable
-	'nIterations' which is set with one of the last statements near the bottom of the file. This replaces
-	the previous TestPerfBlitz.js.
-	gwlogger\test>node EnduroGwLogger.js
+ 10.EnduroGwLogger.js, Not a unit or functional test, more a stress test. 
+	Intended to run for long periods to look for memory leaks or problems 
+	logging to slower drives, or to LAN drives. Uses back-pressure indicator 
+	to keep logging near maximum rate for long periods with rolling logfiles. 
+	As of v1.2.3 checks	for sequencing issues in log statements. Currently uses	
+	500,000 iterations for a complete run, which may take a few hours to overnight 
+	depending on the speed of the test machine and its logging drive(s). To run 
+	a shorter version, change the variable 'nIterations' which is set with one 
+	of the last statements near the bottom of the file.
+		gwlogger\test>node EnduroGwLogger.js
 	
 
 	

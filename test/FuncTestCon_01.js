@@ -1,5 +1,5 @@
 "use strict";
-
+console.log("****************     starting FT_01 **************************");
 /*
 // ------------   If using import (file must be renamed .mjs) -----------------
 import sa from "assert";
@@ -20,22 +20,25 @@ if (!assert) assert = require('assert'); // for node < 10.0 without strict mode
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
 let nPassed = 0;
-let log = new GwLogger("ALL", true, false); // note that isFile (3rd arg) is false, no logging to logfile!
+// note that isFile (3rd arg) is false, no logging to logfile!
+let log = new GwLogger("ALL", true, false); 
 log.setModuleName("FT_01");
 log.notice("\n====> FuncCon_01 \n");
 
-// Test case to check proper logging with loglevel=off, or =all and isConsole=false.
+// Test case to check proper logging with loglevel=off, 
+// or =all and isConsole=false.
 const test_logLevelLogging = function() {	
 	try {
 		log.notice("In FuncTestCon_01.js, showing test file name after loglevel!\n \
-This test group requires a manual assist. A log-level is set and then a log statement is\n \
-made at each possible log level. A person must ensure that the correct statements\n \
-were logged, and none of the incorrect ones.\n \
-An important component of this test file is to verify that none of the\n \
-logging tests should create a logfile. This is to ensure that logging to file\n \
-is well acquiesced.\n \
-Check that the logfile does not contain log statements from FuncCon_01 at: " + log.getFn() + "\n \
-To make this easier to spot, all the log statements in this test file show the name 'FT_01' \n\n\
+This test group requires a manual assist. A log-level is set and then a log \n \
+statement is made at each possible log level. A person must ensure that the \n \
+correct statements were logged, and none of the incorrect ones. An important\n \
+component of this test file is to verify that none of the logging tests should\n \
+create a logfile. This is to ensure that logging to file is well acquiesced.\n \
+Check that the logfile does not contain log statements from FuncCon_01 at: " 
+	+ log.getFn() + "\n \
+To make this easier to spot, all the log statements in this test file show the\n \
+name 'FT_01' \n\n\
 Test 1: Loglevel (LL)=ALL, should log the statement to console for\n\
 all statement levels, but none to file.");
 
@@ -49,7 +52,8 @@ all statement levels, but none to file.");
 		log.debug(msg + " 7");
 		log.trace(msg + " 8");
 		
-		console.log("\nTest 2: LL=OFF, should log NO statements to console or file for any levels");
+		console.log("\nTest 2: LL=OFF, should log NO statements to console or "
+			+ "file for any levels");
 		log.setLogLevel("OFF");
 		msg = "This should NOT be logged, logging is turned off now.";
 		log.fatal(msg + " 1");
@@ -61,9 +65,10 @@ all statement levels, but none to file.");
 		log.debug(msg + " 7");
 		log.trace(msg + " 8");
 
-		console.log("\nTest 3: LL=ALL, but isConsole=false and isFile=false so should\n \
-log nothing for any level");		
-		msg = "This should NOT be logged to console, logging to console and file is turned off now."
+		console.log("\nTest 3: LL=ALL, but isConsole=false and isFile=false "
+			+ "\nso should log nothing for any level");		
+		msg = "This should NOT be logged to console, logging to console and "
+			+ "file is turned off now."
 		log.setLogLevel("ALL");	
 		log.setIsConsole(false);
 		log.fatal(msg + Date.now());
@@ -75,7 +80,8 @@ log nothing for any level");
 		log.debug(msg + Date.now());
 		log.trace(msg + Date.now());	
 
-		console.log("\nTest 4: LL=ALL, isConsole set to true, log all statement levels to console, none to file.");		
+		console.log("\nTest 4: LL=ALL, isConsole set to true, log all statement "
+			+ "levels to console, none to file.");		
 		msg = "Logging AGAIN in test_logLevelLogging at: ";		
 		log.setIsConsole(true);
 		log.setLogLevel("ALL");	
