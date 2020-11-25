@@ -15,7 +15,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.3.0"; // version number of targeted GwLogger.
+const versionRef = "1.3.1"; // version number of targeted GwLogger.
 	
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
@@ -302,7 +302,7 @@ const test_customFileNameErrors = function() {
 // Test that writepool returns the same stream for two distinct custom loggers, 
 // as long as using the same logfile.
 const test_customStreamPools = function() {
-	let logger = new GwLogger("trace", false, true
+	let logger = new GwLogger("trace", true, false //false, true
 		, "./logfiles/logJsonFile.log"); // same logfile as tlog.
 	logger.trace("This logger named 'logger' from UT_02 exists only to ensure "
 		+ "logJsonFile profile exists for test_customStreamPools test case.");

@@ -1,4 +1,5 @@
-
+"use strict";
+/* global exports */
 /*
 	Format object description:
 		tsFormat.isEpoch // boolean, TS in MS - Unix Epoch?
@@ -72,6 +73,6 @@ const getTimeStamp = function(tsFormat, cTime=null) {
 	
 	return (yr + month + "-" + dayOfMonth + "T" + hours 
 		+ tsFormat.sephhmmss + minutes + tsFormat.sephhmmss + seconds + ms + tz); 
-}
+};
 	
 exports.getTimeStamp = getTimeStamp;	

@@ -21,7 +21,7 @@ const getTimeStamp = require("./timestamps.js").getTimeStamp;
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 
-const version = "1.3.0";
+const version = "1.3.1";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
@@ -85,12 +85,14 @@ class GwLogger {
 		this.setIsColor(this.isColor);
 		this.isConsoleTs = this.activeProfile.isConsoleTs;
 		
-		this.isConsole = isConsole === undefined 
-			? this.activeProfile.isConsole 
+		this.isConsole = (isConsole === undefined) 
+			? this.activeProfile.isConsole // get the default 
 			: isConsole;
+		this.profile.setIsConsole(this.isConsole);
 		this.isFile = (isFile === undefined) 
 			? this.activeProfile.isFile 
 			: isFile;
+		this.profile.setIsFile(this.isFile);
 		this.fn = this.profile.isValidStr(fn) 
 			? fn.trim() 
 			: null;
@@ -313,7 +315,7 @@ class GwLogger {
 	
 	//can be turned off by WritePool on an error, so may differ from profile!
 	getIsRollBySizeCurrent() { 
-		return profile.getIsRollBySizeCurrent();
+		return this.profile.getIsRollBySizeCurrent();
 	}
 	
 	setMaxLogSizeKb(kb) { // approx max of each logfile

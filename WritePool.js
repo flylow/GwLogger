@@ -27,7 +27,7 @@ const fs = require("fs");
 
 const getTimeStamp = require("./timestamps.js").getTimeStamp;
 
-const version = "1.3.0";
+const version = "1.3.1";
 
 /*
 Most buffering occurs inside the stream object, as usual for writestreams. 
@@ -656,10 +656,8 @@ class WritePool {
 				&& activeProfile.rollingLogPath 
 				&& (activeProfile.maxNumRollingLogs > 0
 					|| activeProfile.isRollAsArchive) ) {
-			try {
 			this.preRollFiles(ucFn); // perform rolling of logfiles
 			return;
-			} catch(err) {throw err;}
 		}
 		// stream may not exist yet, but file might, see if it needs rolled		
 		else if (activeProfile.isRollBySize) {

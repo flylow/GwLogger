@@ -20,7 +20,7 @@ const renameProm = promisify(fs.rename);
 const unlinkProm = promisify(fs.unlink);
 const truncProm = promisify(fs.truncate);
 const accessProm = promisify(fs.access);
-const version = "1.3.0";
+const version = "1.3.1";
 
 const getVersion = () => {
 	return version;
@@ -45,13 +45,9 @@ const renameFile = async function(path, newPath) {
 
 const copyFile = async function (path, newPath, flags) {
 	const readStream = createReadStream(path);
-	try {
 		const writeStream = createWriteStream(newPath, {flags});
 		await new Promise(resolve => 	
 		readStream.pipe(writeStream).on("finish", resolve));
-	} catch(err) {
-		throw err;
-	}
 };
 
 const zipFile = async function (path, newPath, flags) {
