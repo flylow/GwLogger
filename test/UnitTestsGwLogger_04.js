@@ -12,7 +12,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.3"; // set to target version of GwLogger
+const versionRef = "1.3.0"; // set to target version of GwLogger
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
 tlog.notice("-----------------------------  Unit Testing Begins "
@@ -20,6 +20,17 @@ tlog.notice("-----------------------------  Unit Testing Begins "
 tlog.setModuleName("UT_04");
 tlog.notice("===> UnitTestsGwLogger_04.js is running, "
 	+ "results logfile is: ./logfiles/Unit Test Results.log");
+
+const log2_logfile = "./logfiles/happy.log";
+const log2_rollfiles = "./rolledfiles";
+
+const log2 = new GwLogger("OFF", false, true, log2_logfile);
+log2.setMaxLogSizeKb(10);
+log2.setMaxNumRollingLogs(4);
+log2.setRollingLogPath(log2_rollfiles);
+log2.setIsRollBySize(true);
+log2.setIsRollAtStartup(true);
+log2.setLogLevel("debug");
 
 const showPercentage = function(msg, percentage){
     process.stdout.clearLine();
@@ -45,7 +56,7 @@ const test_getVersion = function() {
 	}
 };
 
-let logPro; // only for use in testPrereqs and 
+let logPro; // only for use in testPrereqs
 const testPrereqs = function() {
 	nTests++;
 	try {
@@ -64,15 +75,6 @@ const testPrereqs = function() {
 		if (showStackTrace) tlog.error(err);
 	}
 };
-
-const log2_logfile = "./logfiles/happy.log";
-const log2_rollfiles = "./rolledfiles";
-
-const log2 = new GwLogger("debug", false, true, log2_logfile);
-log2.setMaxLogSizeKb(10);
-log2.setMaxNumRollingLogs(3);
-log2.setRollingLogPath(log2_rollfiles);
-log2.setIsRollBySize(true);
 
 
 const test_maxLogSize = function() {
@@ -113,8 +115,6 @@ const test_rollPath = function() {
 	let log2PathB = path.resolve("./rolledfiles/rolledfiles2");
 	log2.setRollingLogPath("./rolledfiles/rolledfiles2");
 	assert.ok(log2.getRollingLogPath() === log2PathB);
-	//assert.equal(false, log2.getIsRollBySize());
-	//log2.setIsRollBySize(true);
 	nPassed++;
 	tlog.info("test_rollPath Passed!");
 	} catch(err) {
@@ -128,12 +128,27 @@ const test_isRollBySize = function() {
 	try {
 	assert.equal(true, log2.getIsRollBySize());
 	log2.setIsRollBySize(false);
-	//assert.equal(false, log2.getIsRollBySize());
-	//log2.setIsRollBySize(true);
+	assert.equal(false, log2.getIsRollBySize());
 	nPassed++;
 	tlog.info("test_isRollBySize Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_isRollBySize: ");
+		if (showStackTrace) tlog.error(err);
+	}
+};
+
+const test_isRollAsArchive = function() {
+	nTests++;
+	try {
+	assert.equal(false, log2.getIsRollAsArchive());
+	log2.setIsRollAsArchive(true);
+	assert.equal(true, log2.getIsRollAsArchive());
+	log2.setIsRollAsArchive(false);
+	assert.equal(false, log2.getIsRollAsArchive());
+	nPassed++;
+	tlog.info("test_isRollAsArchive Passed!");
+	} catch(err) {
+		tlog.error("Fail TESTING: test_isRollAsArchive: ");
 		if (showStackTrace) tlog.error(err);
 	}
 };
@@ -200,16 +215,17 @@ const primeBlitz = () => {
 };
 const test_recovery = function(n, iters, isFileDelete) {
 		if (n < iters && test_recovery_pass) {
-			//if (isFileDelete) console.log("isFileDelete, n=",n);
 			if (n % 100 === 0) showPercentage("Test: test_recovery"
 				, Math.round(n/iters*100));
-			if ((isFileDelete) && (n % 1000 === 0)) { 
+			if ((isFileDelete) && (n !== 0) && (n % 1000 === 0)) { 
 				try {
 					if (existsSync(log2_logfile)) {
+						console.log("UNLINKing/deleting log file in test_recovery "
+							+ "<<<<<<<<<<<<<<<");					
 						log2.info("UNLINKing/deleting log file in test_recovery "
 							+ "<<<<<<<<<<<<<<<");
 						unlinkSync(log2_logfile);
-						// the next logged itemis invariably lost, unlinking 
+						// the next logged item is invariably lost, unlinking 
 						// likely happens after this one is logged during 
 						// following timeout
 						log2.info("Completed UNLINKing/deleting log file in "
@@ -251,7 +267,10 @@ const test_recovery = function(n, iters, isFileDelete) {
 					+ "missing log items at end of run (before final 1-50).");
 				test_recovery(n, n + 50, true);
 			}
-			else if (test_recovery_pass) {				
+			else if (test_recovery_pass) {	
+				if (!existsSync(log2_logfile)) {
+				console.error(">>>>> TEST FAILED UT_04 <<<<<<");
+				}
 				nPassed++;
 				tlog.info("test_recovery passed");
 				//console.log("stateRecord is: ", log2.getStateRecord());				
@@ -267,19 +286,20 @@ test_maxLogSize();
 test_maxNumRollingLogs();
 test_rollPath();
 test_isRollBySize();
+test_isRollAsArchive();
 test_RollingLogsViaProfile();
 
 
 tlog.setLogLevel("notice");
 log2.setMaxLogSizeKb(50);
-log2.setMaxNumRollingLogs(20);
-log2.setRollingLogPath("./logfiles/rolledfiles");
+log2.setMaxNumRollingLogs(7);
+log2.setRollingLogPath(log2_rollfiles);
 log2.setIsRollBySize(true);
 primeBlitz(); // make sure there's something in the log2 logfile
 nTests++;
 const nIterations = 1900;
 const onePercent = Math.round(nIterations/100);
-test_recovery(0, nIterations, false);
+test_recovery(0, nIterations, true);
 
 
 	

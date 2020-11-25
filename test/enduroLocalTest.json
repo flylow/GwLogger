@@ -8,9 +8,10 @@
 	"nYr": 0, 
 	"isLocalTz": true, 
 	"isShowMs": true,
+	"isRollAsArchive": true,
 	"isRollAtStartup": true, 
 	"isRollBySize": true,
-	"maxLogSizeKb": 50,
-	"maxNumRollingLogs": 20,
+	"maxLogSizeKb": 200,
+	"maxNumRollingLogs": 5,
 	"rollingLogPath": "./rolledFiles"
 }

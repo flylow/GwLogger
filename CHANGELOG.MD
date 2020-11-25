@@ -12,6 +12,7 @@ Change Log for @flylow/GwLogger
 | 1.2.1 | 2020-10-28 | Separate msgs from code, try/catch fixes, minor edits |
 | 1.2.2 | 2020-10-30 | Docs fix, Fix README API description for setIsRollAtStart |
 | 1.2.3 | 2020-11-11 | Minor bug fixes and coding/testing improvements. |
+| 1.3.0 | 2020-11-25 | Added isColor for console/stdout logging. Added setSepCharFile and setSepCharConsole to aid the importing of logfiles into databases. Added isRollAsArchive to save compressed logfiles at the end of the rolling logs pipeline. Many bugfixes and readme edits.|
 
 
 

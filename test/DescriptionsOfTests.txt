@@ -1,19 +1,22 @@
 
- -- Test descriptions for GwLogger Version 1.2.x --
+ -- Test descriptions for GwLogger Version 1.3.x --
  
- Unit and Functional tests are not included with the npm package, but can be 
- retrieved from the github repository.
+ Unit and Functional tests are not included with the npm package, since they
+ are never required by normal user-developers, but for use in GwLogger development
+ or testing can be retrieved as the test directory within the github repository. 
+ The entire directory should be installed under the gwlogger directory after 
+ npm installation.
 
- The Node.js "assert" package is used, and no dependencies are necessary to test. 
+ The Node.js "assert" package is used, and so no dependencies are necessary to test. 
  Zero dependencies was a goal of gwlogger, but has led to some platform-specific tests. 
 
- Testing on Ubuntu was by editing .bashrc to set/unset the environment variables
- for UnitTestsGwLogger_03.js. It is also possible to do same from NPM or terminal command, 
- but those too are OS-specific. 
-
- Development is primarily in Windows right now, so there are simple bat files that run 
- the tests with help from envSet.bat and envUnset.bat. However, it is not that hard to
- run tests manually.
+ For Windows, so there are simple bat files that run the tests with help from envSet.bat 
+ and envUnset.bat. However, it is not that hard to run each individual test separately, 
+ which may be better if any problems are suspected/detected.
+ 
+ Testing on Ubuntu requires running each test separately. For UnitTestsGwLogger_03.js,
+ you'll need to first run setEnv.sh to set the environment variables. Use a fresh 
+ terminal window to run other tests afterwards. 
  
  All testing is from the command line and should be done after changing to the 
  gwlogger/test directory. Be sure that these directories exist before testing begins:
@@ -21,14 +24,18 @@
    2. gwlogger/test/rolledfiles
    3. gwlogger/test/rolledfiles/rolledfiles2
 
- Most tests can be executed independently, however UnitTestsGwLogger_03 requires
- prep work to set up environment variables (see support files envSet.bat and envUnset.bat),
- and UnitTestsGwLogger_02 should run sometime before UnitTestsGwLogger_04 to ensure a 
- certain logfile exists for UnitTestsGwLogger_04 to roll at startup.
+ Unit tests 1,2,4, and 5 can be executed independently, however UnitTestsGwLogger_03 requires
+ prep work to set up the environment variables (see files envSet.bat and 
+ envUnset.bat or envSet.sh on Linux systems), and UnitTestsGwLogger_02 should 
+ run sometime before UnitTestsGwLogger_04 to ensure a certain logfile exists 
+ for UnitTestsGwLogger_04 to test roll at startup. If you are testing on older 
+ versions of Node (< v12), you may need to use the "node --experimental-modules" switch 
+ for UnitTestsGwLogger_05 to get support for the ECMAScript Modules 
+ import command.
  
  The Unit Tests can be executed with UTRunner.bat if on Windows and inside the gwlogger/test directory.
  Progress and results can be found in ./logfiles/Unit Test Results.log. Each Unit Test provides a 
- summary of number of tests attempted and number passed after its execution.
+ summary of number of tests attempted and number passed after its execution. 
  
  1. UnitTestsGwLogger_01.js, covers these core test cases (sets, then checks that getters will match):
 		test_getVersion();
@@ -61,16 +68,17 @@
  3. UnitTestsGwLogger_03.js,  test for environment variables use in profiles.
 		Requires some preparation: run 'envSet.bat' before the test file, and 'envUnset.bat' afterwards.
 		test_getEnvProfile(); // compares profile built with envSet.bat with canned test model.
-		gwlogger\test>envSet
+		gwlogger\test>envSet   or for Linux, gwlogger/test$ source ./envSet.sh
 		gwlogger\test>node UnitTestsGwLogger_03.js	
-	gwlogger\test>envUnset
+	gwlogger\test>envUnset     sorry, only Windows so far.
 		
- 4. UnitTestsGwLogger_04.js,  test rolling logfiles at startup and by size.
+ 4. UnitTestsGwLogger_04.js, test rolling logfiles at startup and by size.
 		test_getVersion();
 		test_maxLogSize();
 		test_maxNumRollingLogs();
 		test_rollPath();
 		test_isRollBySize();
+		test_isRollAsArchive();
 		test_RollingLogsViaProfile();
 		primeBlitz();
 		test_recovery(0, false);
@@ -78,8 +86,9 @@
 
  5.	UnitTestsGwLogger_05.mjs  -- A unit test to ensure export compatibility for ES6 import syntax, 
 	Ensures that the export statements of GwLogger are compatible with import. Success is a good version test.
-		test_getVersion();
+		test_getVersion(); // if this works okay, then GwLogger worked okay with ES6 modules
 	gwlogger\test>node UnitTestsGwLogger_05.mjs	
+		or node --experimental-modules UnitTestsGwLogger_05.mjs
 
  >> Functional tests log to console and/or file, and must be verified correct manually.
  

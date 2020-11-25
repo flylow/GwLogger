@@ -8,7 +8,7 @@ const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
 
-const versionRef = "1.2.3"; // set to target version of GwLogger
+const versionRef = "1.3.0"; // set to target version of GwLogger
 	
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
@@ -16,15 +16,13 @@ tlog.setModuleName("UT_05");
 tlog.notice("===> UnitTestsGwLogger_05.mjs is running, results logfile is: "
 	+ "./logfiles/Unit Test Results.log");
 
-// Startup API test
+// Extra Startup API test (but manual verification)
 const logger = new GwLogger("DEBUG", false, false
 	, "./logfiles/Profile Param Test Log.log");
 logger.setIsRollBySize(false);
 logger.setMaxNumRollingLogs(5);
 logger.setRollingLogPath("./rolledfiles");
 logger.setIsRollAtStartup(true);
-//console.log("isRollAtStartup is: ", logger.getIsRollAtStartup());
-//logger.setLogLevel("debug");
 logger.setIsFile(true);
 // did it roll the logfile?
 	

@@ -22,7 +22,7 @@ const fsprom = require("../fsprom.js");
 const writePool = require("../WritePool.js");
 // -- end of require section
 
-const versionRef = "1.2.3"; // set to target version of GwLogger	
+const versionRef = "1.3.0"; // set to target version of GwLogger	
 const tlog = new GwLogger("notice", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.notice("-----------------------------  Unit Testing Begins "

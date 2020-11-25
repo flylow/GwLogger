@@ -12,6 +12,7 @@
 */
 
 const fs = require("fs");
+const zlib = require("zlib");
 const createWriteStream = require("fs").createWriteStream;
 const createReadStream = require("fs").createReadStream;
 const promisify = require("util").promisify;
@@ -19,13 +20,13 @@ const renameProm = promisify(fs.rename);
 const unlinkProm = promisify(fs.unlink);
 const truncProm = promisify(fs.truncate);
 const accessProm = promisify(fs.access);
-const version = "1.2.3";
+const version = "1.3.0";
 
 const getVersion = () => {
 	return version;
 };
 	
-const accessFile = async function(path, mode=fs.constants.F_OK) {
+const accessFile = async function(path, mode=fs.constants.W_OK) {
 	try {
 		await accessProm(path, mode);
 		return true;
@@ -44,18 +45,50 @@ const renameFile = async function(path, newPath) {
 
 const copyFile = async function (path, newPath, flags) {
 	const readStream = createReadStream(path);
+	try {
+		const writeStream = createWriteStream(newPath, {flags});
+		await new Promise(resolve => 	
+		readStream.pipe(writeStream).on("finish", resolve));
+	} catch(err) {
+		throw err;
+	}
+};
+
+const zipFile = async function (path, newPath, flags) {
+	const readStream = createReadStream(path);
 	const writeStream = createWriteStream(newPath, {flags});
 	await new Promise(resolve => 	
-		readStream.pipe(writeStream).on("finish", resolve));
+		readStream.pipe(zlib.createGzip()).pipe(writeStream).on("finish", resolve));
 };
 
 const unlinkFile = async function(path) { 
 		await unlinkProm(path);
 };
 
+const moveFileZip = async function(path, newPath, isTrunc, flags) {
+	try {
+		await zipFile(path, newPath, flags);
+	} catch(err) {
+	console.error("In moveFileZip, err is: ", err);
+		throw msg.errMv03(path);
+	}
+	try {
+		if (isTrunc) { // used with initial logfile only
+			await truncFile(path);
+			return "trunc";
+		} else {
+			await unlinkFile(path); // for rolling numbered logs over
+			
+			return "unlink"; // Success, all is good
+		}
+	} catch(err) {
+			throw msg.errMv02(path);
+	}	
+};
+
 /*
  *
- * Try renameFile, but if that fails do a copyFile. If the file being copied 
+ * Try renameFile, but if that fails then do a copyFile. If the file being copied
  * cannot be deleted, then delete (via truncate) the contents if isTrunc is 
  * true (as it is during a roll of the current logfile).
  * return the type of action as a string (rename, unlink, or trunc).
@@ -64,14 +97,13 @@ const moveFile = async function(path, newPath, isTrunc, flags) {
 	try {
 		await renameFile(path, newPath); // Fast on local drives
 		return "rename"; // All is good
-	// various errors, especially on a network drive OR if tailing the logfile	
     } catch(err) {
 		if (err.code === "ENOENT") {
 			return "none"; // file to roll didn't exist
 		}
 		else if (err.code !== "EXDEV" && err.code !== "EPERM" 
 				&& err.code !== "EBUSY") {
-			console.error(err.errMv01(path)); // Unexpected error, 
+			console.error(msg.errMv01(path)); // Unexpected error, 
 			throw err; // and should be investigated
 		}
 		else {				
@@ -104,6 +136,7 @@ const msg = {
 
 
 exports.moveFile = moveFile;
+exports.moveFileZip = moveFileZip;
 exports.truncFile = truncFile;
 exports.unlinkFile = unlinkFile;
 exports.accessFile = accessFile;

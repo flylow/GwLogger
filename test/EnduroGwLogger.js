@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 // -- end of require section
 
-const versionRef = "1.2.3"; // set to target version of GwLogger
+const versionRef = "1.3.0"; // set to target version of GwLogger
 const showStackTrace = true;
 
 const getRandomInt = (max) => {
@@ -61,21 +61,29 @@ const test_getVersion = function() {
 let loggers = [];
 const nLoggers = 3;
 for (let i=0; i<nLoggers; i++) {
-	loggers[i] = new GwLogger({ profileFn: "./enduroLocalTest.json" });
-	/* // Either the one-liner above, OR the following can be used here.
+//	loggers[i] = new GwLogger({ profileFn: "./enduroLocalTest.json" });
+	// Either the one-liner above, OR the following can be used here.
 	loggers[i] = new GwLogger("OFF", false, true, "./logfiles/happy.log");
-	loggers[i].setMaxLogSizeKb(100);
-	loggers[i].setMaxNumRollingLogs(20);
+	loggers[i].setMaxLogSizeKb(200);
+	loggers[i].setMaxNumRollingLogs(10);
+	loggers[i].setRollingLogPath("./rolledfiles");
 	loggers[i].setIsRollBySize(true);
 	loggers[i].setIsRollAtStartup(true);
+	loggers[i].setIsRollAsArchive(true);
 	loggers[i].setLogLevel("info");
+	/*
+	* // May use the two lines below either way, optional
 	*/
+	//loggers[i].setSepCharFile("%");
+	loggers[i].setModuleName("Logger_"+i);	
 }
 
 /*
  *	Test to ensure log is recorded in proper order.
  *	Examines current and rolled logfiles to ensure logging during
- *	rolling didn't lose data or get it out-of-order.
+ *	rolling didn't lose data or get it out-of-order. Runs at end of
+ *  all testing, so only uses snapshot of rolled logfiles that 
+ *  exist at that time.
 */
 const test_seqConfirm = function(n, iters, fn, rollingLogPath
 		, nMaxLogs, maxKb ) {
@@ -108,11 +116,9 @@ const test_seqConfirm = function(n, iters, fn, rollingLogPath
 				nStart = logContents.indexOf(", n=", nStart);
 				nEnd = logContents.indexOf("...,", nStart+2);
 				if (nEnd > nStart+12 || nEnd < nStart) {
-	//				console.log("End of file, line: ", nLines, logFn);
 					continue;
 				}
 				nStr = logContents.substr(nStart + 4, nEnd - nStart - 4);
-	//			console.log("i=",i,"nStr=" + nStr + "*");
 				nNum = parseInt(nStr);
 				if (nFirstNum < 0) {
 					nFirstNum = nNum;
@@ -234,7 +240,7 @@ test_getVersion();
 nTests++;
 const nStart = 0;
 let test_enduro_pass = true, nDelays = 0, delay = 0;
-const nIterations = 500000;
+const nIterations = 100000;
 test_enduro(nStart, nIterations);
 
 

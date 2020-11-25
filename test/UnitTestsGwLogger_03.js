@@ -8,7 +8,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.3"; // version number of targeted GwLogger.
+const versionRef = "1.3.0"; // version number of targeted GwLogger.
 
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
@@ -57,6 +57,7 @@ let jsonEnvTest = {
 	"nYr": 1,
 	"isShowMs": false,
 	"isConsoleTs": true,
+	"isRollAsArchive": false,
 	"isRollAtStartup": true,
 	"isRollBySize": false,
 	"maxLogSizeKb": 0, 

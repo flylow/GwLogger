@@ -1,15 +1,15 @@
 "use strict";
 /** 
  * GwLogger : A simple-to-use Node.js logger that streams to file and/or console. 
- * There are no dev dependencies for GwLogger, but if you use Eslint please use
- * the included eslintrc.json profile.
+ * There are no dev dependencies for GwLogger, but if you are modifying
+ * GwLogger and use Eslint please use the included eslintrc.json profile.
  *
  * For more information, see README.MD and CHANGELOG.MD at 
  * https://github.com/flylow/GwLogger Test info is in the test 
  * directory's file: DescriptionsOfTests.txt
  *
  * MIT license.
- * --G. Wilson, 5/2020
+ * --G. Wilson, 11/2020
  */
  
 // A directive for exceptions to ESLint no-init rule 
@@ -17,10 +17,11 @@
 
 const writePool = require("./WritePool.js");
 const { ProfileClass } = require("./Profiles"); 
+const getTimeStamp = require("./timestamps.js").getTimeStamp;
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 
-const version = "1.2.3";
+const version = "1.3.0";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
@@ -76,6 +77,7 @@ class GwLogger {
 		this.timeStampFormat.isLocalTz = this.activeProfile.isLocalTz;
 		this.timeStampFormat.isShowMs = this.activeProfile.isShowMs; // log MS
 		this.timeStampFormat.nYr = this.activeProfile.nYr; // 0-4 yr digits
+		this.timeStampFormat.sephhmmss = ":"; // separator for time
 		this.sepCharFile = " "; // separator between parts of logfile messages.
 		this.sepCharConsole = " "; // separator between parts of console msgs.
 		this.depthNum = 2;
@@ -100,6 +102,7 @@ class GwLogger {
 			: this.wsSources.global;
 		if (this.fn) {
 			this.profile.setFn(this.fn);
+			this.profile.setUcFn(this.ucFn);
 		}
 			
 		this.stateRecord.wsSource = this.wsSource;
@@ -137,66 +140,6 @@ class GwLogger {
 	
 	static getVersion() { 
 		return version;
-	}
-
-	static getTimeStamp(tsFormat) {
-		if (tsFormat.isEpoch) return Date.now(); //UNIX Epoch
-		
-		let currentTime = new Date();
-		if (tsFormat.year === 4 && tsFormat.isShowMs) {
-			//2020-07-10T20:56:33.291Z (24 chars)
-			return currentTime.toISOString();
-		}
-		
-		const padZero = "0";	
-		let yr = tsFormat.isLocalTz 
-			? (currentTime.getFullYear()).toString() 
-			: (currentTime.getUTCFullYear()).toString();
-		
-		let month = tsFormat.isLocalTz 
-			? (currentTime.getMonth() + 1).toString() 
-			: (currentTime.getUTCMonth() + 1).toString();
-		month = month.padStart(2, padZero);
-
-		let dayOfMonth = tsFormat.isLocalTz 
-			? currentTime.getDate().toString() 
-			: currentTime.getUTCDate().toString();
-		dayOfMonth = dayOfMonth.toString().padStart(2, padZero);
-
-		let hours = tsFormat.isLocalTz 
-			? currentTime.getHours().toString() 
-			: currentTime.getUTCHours().toString();
-		hours = hours.padStart(2, padZero); 
-		
-		let minutes = tsFormat.isLocalTz 
-			? currentTime.getMinutes().toString() 
-			: currentTime.getUTCMinutes().toString();
-		minutes = minutes.padStart(2, padZero);
-		
-		let seconds = tsFormat.isLocalTz 
-			? currentTime.getSeconds().toString() 
-			: currentTime.getUTCSeconds().toString();
-		seconds = seconds.padStart(2, padZero);
-		
-		let ms = tsFormat.isLocalTz 
-			? currentTime.getMilliseconds().toString() 
-			: currentTime.getUTCMilliseconds().toString();
-		ms = ms.padStart(3, padZero);
-
-		if (tsFormat.nYr === 0) yr = ""; // omit year
-			else if (tsFormat.nYr < 4) yr = yr.substring(4 - tsFormat.nYr) + "-";
-			else yr = yr + "-"; // 4 digit
-		
-		ms = tsFormat.isShowMs 
-			? ":" + ms 
-			: "";
-		
-		let tz = tsFormat.isLocalTz 
-			? "" 
-			: "z";
-		
-		return (yr + month + "-" + dayOfMonth + "T" + hours 
-			+ ":" + minutes + ":" + seconds + ms + tz); 
 	}
 	
 	getActiveProfile() {
@@ -338,16 +281,31 @@ class GwLogger {
 		return this.profile.getFn();
 	}
 
+	setIsRollAsArchive(b) {
+		if (typeof b !== "boolean") {
+			return null;
+		}	
+		return this.profile.setIsRollAsArchive(b);
+	}	
+	getIsRollAsArchive() {
+		return this.profile.getIsRollAsArchive();
+	}
+	
 	setIsRollAtStartup(b) {
+		if (typeof b !== "boolean") {
+			return null;
+		}	
 		return this.profile.setIsRollAtStartup(b);
 	}	
 	getIsRollAtStartup() {
 		return this.profile.getIsRollAtStartup();
 	}
-		
-	// roll by size settings
+	
 	setIsRollBySize(b) {
-		return this.profile.setIsRollBySize(this.ucFn, b);
+		if (typeof b !== "boolean") {
+			return null;
+		}	
+		return this.profile.setIsRollBySize(b);
 	}
 	getIsRollBySize() {
 		return this.profile.getIsRollBySize();
@@ -355,25 +313,25 @@ class GwLogger {
 	
 	//can be turned off by WritePool on an error, so may differ from profile!
 	getIsRollBySizeCurrent() { 
-		return writePool.getIsRollBySize(this.ucFn);
+		return profile.getIsRollBySizeCurrent();
 	}
 	
 	setMaxLogSizeKb(kb) { // approx max of each logfile
-		return this.profile.setMaxLogSizeKb(this.ucFn, kb);
+		return this.profile.setMaxLogSizeKb(kb);
 	}
 	getMaxLogSizeKb() {
 		return this.profile.getMaxLogSizeKb();
 	}
 
 	setMaxNumRollingLogs(n) { // how many logfiles to keep
-		return this.profile.setMaxNumRollingLogs(this.ucFn, n);
+		return this.profile.setMaxNumRollingLogs(n);
 	}	
 	getMaxNumRollingLogs() {
 		return this.profile.getMaxNumRollingLogs();
 	}
 
 	setRollingLogPath(p) { // the path to store old logfiles
-		return this.profile.setRollingLogPath(this.ucFn, p);
+		return this.profile.setRollingLogPath(p);
 	}	
 	getRollingLogPath() {
 		return this.profile.getRollingLogPath();
@@ -442,20 +400,8 @@ class GwLogger {
 		// bufferOk is similar to (usually the same) as stream's backpressure.
 		let bufferOk = true; 
 		let t;
-		/*
-		if (!isColor) {
-			if (Array.isArray(msg)) t = this.formatArgs(msg, false);
-			else t = msg;			
-		}
-		*/
-		let timestamp = GwLogger.getTimeStamp(this.timeStampFormat);
+		let timestamp = getTimeStamp(this.timeStampFormat);
 		if (this.isConsole) {
-			/*
-			if (isColor) {
-				if (Array.isArray(msg)) t = this.formatArgs(msg, true);
-				else t = msg;
-			}
-			*/
 			if (Array.isArray(msg)) t = this.formatArgs(msg, isColor);
 			else t = msg;			
 			let mn = this.moduleName 

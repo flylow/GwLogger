@@ -7,13 +7,15 @@ const GwLogger = require("../GwLogger").GwLogger;
 const existsSync = require("fs").existsSync;
 const unlinkSync = require("fs").unlinkSync;
 const path = require("path");
+const fs = require("fs");
+const getTimeStamp = require("../timestamps.js").getTimeStamp;
 let profiles;
 let assert;
 assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.2.3"; // version number of targeted GwLogger.
+const versionRef = "1.3.0"; // version number of targeted GwLogger.
 	
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
@@ -103,6 +105,7 @@ let jsonDefTest2 = {
 	"nYr": 0,
 	"isLocalTz": true,
 	"isShowMs": true,
+	"isRollAsArchive": false,
 	"isRollAtStartup": false,
 	"isRollBySize": true,
 	"maxLogSizeKb": 20, 
@@ -121,19 +124,13 @@ const test_getJsonProfile = function() {
 	try {
 		let jsonDefTestStr = JSON.stringify(jsonDefTest2, replacer, 2);
 		jsonDefTest = JSON.parse(jsonDefTestStr);
-	//	console.log("jsonDefTest2 is: ", jsonDefTest2);
 		let jsonReturn = profiles.getActiveProfile(); // get current settings
-	//	console.log("jsonReturn:",jsonReturn);
 		let jsonReturnStr = JSON.stringify(jsonReturn, replacer, 2);
 		jsonReturn = JSON.parse(jsonReturnStr);
-	//	console.log("---- jsonDefTest2, jsonReturn ------------");
-	//	console.log(jsonDefTest, "\n",jsonReturn);
-	//	console.log("---- END END jsonDefTest2, jsonReturn ------------");
 	// Compare what is stored with what we expected	
 		assert.deepStrictEqual(jsonDefTest2, jsonReturn); 
 		tlog.info("test_getJsonProfile Passed!");
 		nPassed++;
-	//	console.log("test_getJsonProfile Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_getJsonProfile");
 		if (showStackTrace) tlog.error(err);
@@ -225,33 +222,36 @@ const test_getTimeStamp = function() {
 	timeStampFormat.isLocalTz = true; // use local time (if false, will use UTC)
 	timeStampFormat.isShowMs = true; // show the milliseconds?
 	timeStampFormat.nYr = 0; // number of digits for the year in timestamps, 0-4	
+	timeStampFormat.sephhmmss = ":";
 	try {
-		ts = GwLogger.getTimeStamp(timeStampFormat);
+		let stats = fs.statSync("./logfiles/Unit Test Results.log");
+		let ms = stats.mtimeMs; // last time file was modified
+		ts = getTimeStamp(timeStampFormat);
 		let testTs = Date.now();
 		// the constant number is a TS from an definite earlier time than the test
 		assert.ok(typeof ts === "number" && ts > 1594568938531 && testTs >= ts); 
 		tlog.info("Epoch subtest passed");
 		timeStampFormat.isEpoch = false;
 		timeStampFormat.isLocalTz = false;
-		ts = GwLogger.getTimeStamp(timeStampFormat);
-		assert.ok(ts.endsWith("z"));
+		ts = getTimeStamp(timeStampFormat);
+		assert.ok(ts.endsWith("Z"));
 		tlog.info("Switch to Zulu time passed, ts is: ", ts);
 		assert.ok(ts.length === 19, "Diff # of chars in zulu ts");
 		tlog.info("Length of zulu time passed with nYr=0, ts is: ", ts);
 		timeStampFormat.isLocalTz = true;
-		ts = GwLogger.getTimeStamp(timeStampFormat);
-		assert.ok(!ts.endsWith("z"));
+		ts = getTimeStamp(timeStampFormat);
+		assert.ok(!ts.endsWith("Z"));
 		tlog.info("Switch to local time passed, ts is: ", ts);
 		assert.ok(ts.length === 18, "Diff # of chars in local ts");
 		tlog.info("Length of local time passed with nYr=0, ts is: ", ts);
 		timeStampFormat.nYr = 2;
-		ts = GwLogger.getTimeStamp(timeStampFormat);
+		ts = getTimeStamp(timeStampFormat);
 		assert.ok(ts.length === 21, "Diff # of chars with nYr=2 in local ts");
 		tlog.info("Length of local time passed with nYr=2, ts is: ", ts);
 		timeStampFormat.nYr = 4;
 		timeStampFormat.isLocalTz = true;
 		timeStampFormat.isShowMs = false;
-		ts = GwLogger.getTimeStamp(timeStampFormat);
+		ts = getTimeStamp(timeStampFormat);
 		assert.ok(ts.length === 19, "Diff # of chars with nYr=2 in local ts");
 		tlog.info("Length of local time passed with nYr=4, no MS, ts is: ", ts);
 		tlog.info("Overall testing of getTimeStamp passed!");
