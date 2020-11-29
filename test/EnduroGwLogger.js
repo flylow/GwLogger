@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 // -- end of require section
 
-const versionRef = "1.3.1"; // set to target version of GwLogger
+const versionRef = "1.4.0"; // set to target version of GwLogger
 const showStackTrace = true;
 
 const getRandomInt = (max) => {
@@ -63,12 +63,14 @@ const nLoggers = 3;
 for (let i=0; i<nLoggers; i++) {
 //	loggers[i] = new GwLogger({ profileFn: "./enduroLocalTest.json" });
 	// Either the one-liner above, OR the following can be used here.
-	loggers[i] = new GwLogger("OFF", false, true, "./logfiles/happy.log");
-	loggers[i].setMaxLogSizeKb(200);
-	loggers[i].setMaxNumRollingLogs(10);
+	loggers[i] = new GwLogger("OFF", false, true, "./logfiles/enduro.log");
+	loggers[i].setMaxLogSizeKb(500);
+	loggers[i].setMaxNumRollingLogs(5);
 	loggers[i].setRollingLogPath("./rolledfiles");
 	loggers[i].setIsRollBySize(true);
 	loggers[i].setIsRollAtStartup(true);
+	loggers[i].setArchiveLogPath("./rolledfiles/rolledfiles2");
+	loggers[i].setArchiveLogPath(null);	
 	loggers[i].setIsRollAsArchive(true);
 	loggers[i].setLogLevel("info");
 	/*
@@ -230,7 +232,9 @@ const test_enduro = function(n, iters) {
 		
 		test_seqConfirm(nStart, nIterations, loggers[0].getFn()
 			, loggers[0].getRollingLogPath()
-			, loggers[0].getMaxNumRollingLogs(), loggers[0].getMaxLogSizeKb() );		
+			, loggers[0].getMaxNumRollingLogs(), loggers[0].getMaxLogSizeKb() );
+		console.log("Time Stopped: ", timeStoppedMs = Date.now());
+		console.log("Total ms is: ", timeStoppedMs - timeStartedMs);
 		tlog.notice("\nTotal EnduroGwLogger.js Tests: " + nTests 
 			+ ", Tests Passed: " + nPassed + "\n\n");		
 	}
@@ -239,8 +243,11 @@ const test_enduro = function(n, iters) {
 test_getVersion();
 nTests++;
 const nStart = 0;
+let timeStoppedMs;
+const timeStartedMs = Date.now()
+console.log("Time Started: ", timeStartedMs);
 let test_enduro_pass = true, nDelays = 0, delay = 0;
-const nIterations = 100000;
+const nIterations = 500000;
 test_enduro(nStart, nIterations);
 
 

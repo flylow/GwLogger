@@ -8,7 +8,7 @@ const assert = sa.strict;
 const GwLogger = gwl.GwLogger;
 
 
-const versionRef = "1.3.1"; // set to target version of GwLogger
+const versionRef = "1.4.0"; // set to target version of GwLogger
 	
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");

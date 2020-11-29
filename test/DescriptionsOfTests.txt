@@ -78,6 +78,7 @@
 		test_maxNumRollingLogs();
 		test_rollPath();
 		test_isRollBySize();
+		test_ArchiveLogpath();
 		test_isRollAsArchive();
 		test_RollingLogsViaProfile();
 		primeBlitz();
@@ -142,15 +143,17 @@
 		gwlogger\test>node FuncTest_04.js	
 
 	
- 10.EnduroGwLogger.js, Not a unit or functional test, more a stress test. 
+ 10.EnduroGwLogger.js, Not a unit or functional test, more of a stress test. 
 	Intended to run for long periods to look for memory leaks or problems 
 	logging to slower drives, or to LAN drives. Uses back-pressure indicator 
 	to keep logging near maximum rate for long periods with rolling logfiles. 
-	As of v1.2.3 checks	for sequencing issues in log statements. Currently uses	
-	500,000 iterations for a complete run, which may take a few hours to overnight 
-	depending on the speed of the test machine and its logging drive(s). To run 
-	a shorter version, change the variable 'nIterations' which is set with one 
-	of the last statements near the bottom of the file.
+	As of v1.2.3 checks	for sequencing issues in log statements. As of 1.4.0
+	adds archiving the rolled log files. 
+	Currently uses 500,000 iterations for a complete run, which may take a 
+	few hours to overnight depending on the speed of the test machine and 
+	its logging drive(s). To run a shorter version, change the variable 
+	'nIterations' which is set with one of the last statements near the 
+	bottom of the file.
 		gwlogger\test>node EnduroGwLogger.js
 	
 

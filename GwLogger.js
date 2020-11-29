@@ -21,7 +21,7 @@ const getTimeStamp = require("./timestamps.js").getTimeStamp;
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 
-const version = "1.3.1";
+const version = "1.4.0";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
@@ -337,6 +337,13 @@ class GwLogger {
 	}	
 	getRollingLogPath() {
 		return this.profile.getRollingLogPath();
+	}
+
+	setArchiveLogPath(p) { // the path to store compressed old logfiles
+		return this.profile.setArchiveLogPath(p);
+	}	
+	getArchiveLogPath() {
+		return this.profile.getArchiveLogPath();
 	}
 
 	getWritableLengthKb() {  // Size in KB of this logfile's write buffer.

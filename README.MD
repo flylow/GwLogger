@@ -9,7 +9,8 @@ GwLogger requires Node.js, version 10.0 or greater.
 | 1.0.0 | 2020-08-09 | Initial Release |
 | 1.1.0 | 2020-09-21 | Added rolling logs (by size) and multiple profile support |
 | 1.2.0 | 2020-10-01 | Added rolling logs (at startup) |
-| 1.3.0 | 2020-11-18 | Added isColor for console/stdout logging. Added setSepCharFile and setSepCharConsole to aid the importing of logfiles into databases. Added isRollAsArchive to save compressed logfiles at the end of the rolling logs pipeline.|
+| 1.3.0 | 2020-11-25 | Added isColor for console/stdout logging. Added setSepCharFile and setSepCharConsole to aid the importing of logfiles into databases. Added isRollAsArchive to save compressed logfiles at the end of the rolling logs pipeline.|
+| 1.4.0 | 2020-11-29 | Added ability to specify archiveLogPath separately from rolledLogPath.  Made changes so that no error occurs if rolledLogPath and/or archiveLogPath is not defined (archiveLogPath would use rolledLogPath, and rolledLogPath would use the logfile\'s path. |
 
 (Please see CHANGELOG.MD for more minor release/fix descriptions)
 
@@ -45,6 +46,25 @@ Now that you have a logger defined, you can log something:
 **05-13T21:08:39:027 WARN: Did this warning get logged?**
 The line from your logfile shows the result. Obviously, this warning was logged on May 13th at 9:08pm, plus 39 seconds and 27 milliseconds.
 
+#### Example Use ####
+Here is a **minimal application** that uses the API to define a logger to log at both console and file at "INFO" level, will roll logfiles around 200K and keep the last five logfiles, will compress and save rolled logfiles older than those five.
+```javascript
+	const GwLogger = require("@flylow/gwlogger").GwLogger; 
+	const log = new GwLogger("INFO", true, true);
+	log.setMaxLogSizeKb(200);
+	log.setMaxNumRollingLogs(5);
+	log.setIsRollBySize(true);
+	log.setIsRollAsArchive(true);
+	log.info("Wait, is that all there is to it?");
+	
+```
+To run, create an app directory and copy the above code into it with any file name, say example1.js. Then, from a terminal window navigate to that app directory and install GwLogger as a module:
+`npm i @flylow/gwlogger`
+Then you can run the example:
+`node example1.js`
+You should see: INFO: Wait, is that all there is to it?
+and you will find gwl_log.log in your app directory with the same log item.
+
 Settings can be changed via profiles, environment variables or the API. For example the loglevel can be adjusted anytime in your source by this API call:
 ```javascript
 	log.setLogLevel("debug");
@@ -55,13 +75,10 @@ Logging to console or logfile can be similarly controlled:
 	log.setIsFile(false); // turn-off logging to logfile
 ```
 
-Rolling logs by size can be defined this way:
+A different path for rolling logs can be defined this way:
 
 ```javascript
 	log.setRollingLogPath("./logfiles/rollingLogs");
-	log.setMaxLogSizeKb(200);
-	log.setMaxNumRollingLogs(5);
-	log.setIsRollBySize(true);
 ```
 
 ### Constructors ###
@@ -133,6 +150,7 @@ By default at startup, each instance of GwLogger checks for environment variable
 	"isRollAtStartup": false,
 	"isRollBySize": false,
 	"rollingLogPath": null,
+	"archiveLogPath": null,
 	"maxLogSizeKb": 0,
 	"maxNumRollingLogs": 0
   }
@@ -140,15 +158,15 @@ By default at startup, each instance of GwLogger checks for environment variable
 
 If found, all instances of GwLogger for your application will use the ./GwLogger.json profile you created to override built-in default values, unless a different profile is specified in the constructor or environment variables are found. 
   
-If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each one should be preceded by "GWL_" so that GwLogger can find them. Such as:
+If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each attribute name shown above in the json listing should be preceded by "GWL_" so that GwLogger can find them. Such as:
 ```shell
-	GWL_fn=mylogfile.txt
+	GWL_fn=./logfiles/mylogfile.txt
 	GWL_isConsole=true
 	GWL_nYr=4
 ```
-Note that if **any** GwLogger environment variable is discovered, then all json profiles will be ignored.
+Note that if **any** GwLogger environment variable is discovered, then **all** json profiles and settings will be ignored.
 
-You\'ll set these in an [operating-system-specific](https://en.wikipedia.org/wiki/Environment_variable "operating-system-specific") way, or maybe use [dotenv](https://github.com/motdotla/dotenv "dotenv").  
+You\'ll set environment variables in an [operating-system-specific](https://en.wikipedia.org/wiki/Environment_variable "operating-system-specific") way, or maybe use [dotenv](https://github.com/motdotla/dotenv "dotenv").  
 Any values that are not set by the shared GwLogger.json profile, another json file you specify in the constructor, or in the environment variables will be initialy set according to the built-in defaults.
 
 To write to a different log file than the built-in defaults, the environment variables, or the ./GwLogger.json file specify, pass a new name into a constructor as the fourth parameter, and the others will be overridden: 
@@ -176,7 +194,7 @@ Timestamp formats are based on ISO-8601, although that can be tweaked with the p
 
 Besides ISO-8601, you can specify to show timestamps in only milliseconds since 1/1/1970 UTC (aka the Unix Epoch).
 
-Most timestamp formating is done using the API (described later), but these items can be included in a profile or as environment variables:
+Most timestamp formating is done using the API (described later), but these four settings can be included in a profile or as environment variables:
 ```json
   {
 	"isEpoch": false,
@@ -199,25 +217,25 @@ When your logfile reaches a specified size, it is copied/renamed and logging con
 3. maxNumRollingLogs, and 
 4. rollingLogPath. 
 
-Note that the rollingLogPath must point to a directory that already exists.
+Note that the rollingLogPath must point to a directory that already exists, and if not set rolling will be to the logfile\'s directory.
 
 The four parameters may be defined in your JSON profile, environment variables, or you can manipulate rolling logs by size via the API. The rolled logs are named with the logger\'s logfile name with "_nnn" appended, such as gwl_log_001.log, gwl_log_002.log, ..., gwl_log_nnn.log. The larger numbers will contain the older data.
 
-Note that all four parameters must be defined (including rollingLogPath).
+Note that the first three parameters above must be defined.
 
 #### Rolling Logs at Startup
-Three parameters must be defined to use rolling logs at startup: 
+Three parameters ccan be defined to use rolling logs at startup: 
 
 1. isRollAtStartup, 
 2. maxNumRollingLogs, and 
 3. rollingLogPath. 
 
-Note that the rollingLogPath must point to a directory that already exists. Naming rules will follow the same pattern as described in the previous section.
+Note that the rollingLogPath, as mentioned earlier, must point to a directory that already exists, and if not set rolling will be to the logfile\'s directory.
 
-The three parameters are usually defined either in your JSON profile or the environment variables prior to starting your application. You can use both roll by size and roll at startup together.
+The three parameters are usually defined either in your JSON profile or the environment variables prior to starting your application. You can use both roll-by-size and roll-at-startup together.
 <a name="cheatRollAtStart"></a>
 
-##### RollAtStart via the API
+##### Rolling Logs at Startup via the API
 Although this feature is probably best set either by an environment variable or by a json profile, it is possible to enable it via the API. If, at startup, logLevel is set to OFF or the isFile parameter is set to false, rolling will be delayed until those parameters are changed via the API and logging to file actually commences. For instance:
 
 ```javascript
@@ -228,21 +246,27 @@ Although this feature is probably best set either by an environment variable or 
 	logger.setLogLevel("debug"); // This change will cause logfile to roll.
 
 ```
+However, if you have multiple source files writing to the same logfile, you\'ll have to good at predicting which one Node will start first, which can be difficult. That\'s why it is better to use a profile for roll at startup.
 <a name="archives"></a>
 
 #### Archives 
-Using the isRollAsArchive option extends the logfile pipline one more step. Rather than delete the oldest rolled log, setting the archival style causes it to be compressed, renamed with a UTC timestamp and never removed by GwLogger. For example, the logfile, \"happy.log\" could be archived directly to \"happy_2020-11-18T153057Z.log.gz\". Or, you might specify a non-zero maxNumberRollingLogs causing it to be rolled first to a numbered plain text rolled file, and as the maxNumberRollingLogs was exceeded to  \"happy_2020-11-18T153057Z.log.gz\" as a compressed archive. With maxNumRollingLogs=5 you could see a rolled logfile directory after the 11th rolling that is similar to:
+Using the isRollAsArchive option extends the logfile pipline one more step. Rather than delete the oldest rolled log, setting the archival style causes it to be compressed, renamed with a UTC timestamp and never removed by GwLogger. The logfile, \"happy.log\" could be:
+- archived directly to \"happy_2020-11-18T153057Z.log.gz\" when your app is started or reaches a certain size. Or, 
+- rolled first to a numbered plain text rolled file, and as the maxNumberRollingLogs was exceeded to  \"happy_2020-11-18T153057Z.log.gz\" as a compressed archive. 
+
+With maxNumRollingLogs=5 you could see a combined rolled and archive files directory after the 11th rolling that is similar to:
 
 ![Rolling Archives](https://raw.githubusercontent.com/flylow/GwLogger/master/docimages/dirlisting.png "Rolling Archives")
 
 Archived files are compressed into [gzip](https://www.gnu.org/software/gzip/ "gzip") format, which can be opened with [7-Zip](https://www.7-zip.org/ "7-Zip") or [Winzip](https://www.winzip.com/win/en/ "Winzip") on Windows, or from Linux/Mac command lines with "gzip -dk \<fn\>\".
 
-Archiving, if enabled, must be used with isRollAtStartup and/or isRollBySize. As part of your json profile, for example:
+Archiving, if enabled, is always used with isRollAtStartup and/or isRollBySize. As part of your json profile, for example:
 
 ```json
 	"fn": "./logfiles/happy.log",
 	"logLevelStr": "info",
 	"rollingLogPath": "./rolledFiles",
+	"archiveLogPath": "./archives"
 	"isRollAsArchive": true,
 	"isRollAtStartup": true, 
 	"isRollBySize": true,
@@ -254,12 +278,13 @@ or, via the API:
 	const log = new GwLogger("off", false, true, "./logfiles/happy.log");
 	log.setMaxLogSizeKb(50);
 	log.setRollingLogPath("./logfiles/rolledfiles");
+	log.setArchiveLogPath("./logfiles/archives");
 	log.setMaxNumRollingLogs(5);
 	log.setIsRollBySize(true);
 	log.setIsRollAsArchive(true);
 	log.setLogLevel("info");
 
-Setting maxNumRollingLogs to zero means that a logfile will be immediately compressed (when hitting the max size or at startup) and saved as an archive file. Settings as shown above get you the best of both worlds, some recently rolled files for direct examination and older files saved as compressed archives. Expect a future release to allow specifying a unique directory for storing archived logfiles, currently they are stored in the same directory specified by rollingLogPath.
+Setting maxNumRollingLogs to zero means that a logfile will be immediately compressed (when hitting the max size or at startup) and saved as an archive file. Settings as shown above get you the best of both worlds, some recently rolled files for direct examination and older files saved as compressed archives. If the archiveLogPath is not set, archives will be stored in the same directory used for rollingLogPath.
 ```
 
 ### GwLogger\'s Application Programming Interface (API)
@@ -301,7 +326,7 @@ The API contains a list of public methods for each logger accessed as in the ear
 
 | Rolling Logs and Archives  | Description and Default Value |
 | -----------| ------------ |
-|*setRollingLogPath(path); | Defines the directory where older logs should be saved. The default is null. The directory must exist. Environment variable: \"GWL_rollingLogPath=\"\<string> |
+|*setRollingLogPath(path); | Defines the directory where older rolled logs should be saved. The default is null, but if not specified will use the logfile directory. When specified directory must exist. Environment variable: \"GWL_rollingLogPath=\"\<string> |
 |getRollingLogPath(); |Return a string with path. |
 |*setMaxNumRollingLogs(n); |The maxiumun number of old logs to save. Defaults to 0, n must range between 0-20. Environment variable: \"GWL_maxNumRollingLogs=\"\<0..20> |
 |getMaxNumRollingLogs(); |Returns a number |
@@ -313,12 +338,14 @@ The API contains a list of public methods for each logger accessed as in the ear
 |getIsRollAtStartup(); |Return boolean true/false. |
 |*setIsRollAsArchive(b); | A modifier for rolling logs if boolean is true. Instead of continuous rolling of older log files, save them by including a timestamp in filenames, compressing them, then never removing them. Environment variable: \"GWL_isRollAsArchive=\"\<boolean>. See the section [Archives](#archives "Archives")|
 |getIsRollAsArchive(); |Return boolean true/false. |
+|*setArchiveLogPath(path); | Defines the directory where archived logs should be saved. The default is null, but if not specified will use the rolledLogPath directory. When specified, the directory must exist. Environment variable: \"GWL_archiveLogPath=\"\<string> |
+|getArchiveLogPath(); |Return a string with path. |
 
 Of course, most log levels (except off and all) are API methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
 log.`<level>`(`<data to log>`). You may also comma-separate data items:
 `log.dev("Value of object vehicle is: ", vehicle);`
 
-### Developer and Tester Notes ###
+### GwLogger Developer and Tester Notes ###
 Test directories and files are not included in the NPM releases, but can be found on GitHub. In the test directory, see the file \"DescriptionOfTests.txt\".
 
 ### Bugs or Problems ###

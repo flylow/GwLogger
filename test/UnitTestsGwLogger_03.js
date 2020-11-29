@@ -8,7 +8,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.3.1"; // version number of targeted GwLogger.
+const versionRef = "1.4.0"; // version number of targeted GwLogger.
 
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
@@ -62,7 +62,8 @@ let jsonEnvTest = {
 	"isRollBySize": false,
 	"maxLogSizeKb": 0, 
 	"maxNumRollingLogs": 0, 
-	"rollingLogPath": path.resolve("./rolledfiles/rolledfiles2")
+	"rollingLogPath": path.resolve("./rolledfiles/rolledfiles2"),
+	"archiveLogPath": null
 };
 
 // --- This test requires preparation of setting environment variables that match 

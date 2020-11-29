@@ -12,7 +12,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.3.1"; // set to target version of GwLogger
+const versionRef = "1.4.0"; // set to target version of GwLogger
 const tlog = new GwLogger("notice", true, true
 	, "./logfiles/Unit Test Results.log");
 tlog.notice("-----------------------------  Unit Testing Begins "
@@ -23,11 +23,13 @@ tlog.notice("===> UnitTestsGwLogger_04.js is running, "
 
 const log2_logfile = "./logfiles/happy.log";
 const log2_rollfiles = "./rolledfiles";
+const log2_archivefiles = "./rolledfiles/rolledfiles2";
 
 const log2 = new GwLogger("OFF", false, true, log2_logfile);
 log2.setMaxLogSizeKb(10);
-log2.setMaxNumRollingLogs(4);
+log2.setMaxNumRollingLogs(3);
 log2.setRollingLogPath(log2_rollfiles);
+log2.setArchiveLogPath(log2_archivefiles);
 log2.setIsRollBySize(true);
 log2.setIsRollAtStartup(true);
 log2.setLogLevel("debug");
@@ -46,10 +48,10 @@ let nPassed = 0;
 const test_getVersion = function() {
 	nTests++;
 	try {
-	const ver = GwLogger.getVersion();
-	assert.equal(ver, versionRef);
-	nPassed++;
-	tlog.info("test_getVersion Passed!");
+		const ver = GwLogger.getVersion();
+		assert.equal(ver, versionRef);
+		nPassed++;
+		tlog.info("test_getVersion Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_getVersion: ");
 		if (showStackTrace) tlog.error(err);
@@ -80,11 +82,11 @@ const testPrereqs = function() {
 const test_maxLogSize = function() {
 	nTests++;
 	try {
-	assert.equal(true, log2.getIsRollBySize());
-	log2.setMaxLogSizeKb(24);
-	assert.equal(24, log2.getMaxLogSizeKb());
-	nPassed++;
-	tlog.info("test_maxLogSize Passed!");
+		assert.equal(true, log2.getIsRollBySize());
+		log2.setMaxLogSizeKb(24);
+		assert.equal(24, log2.getMaxLogSizeKb());
+		nPassed++;
+		tlog.info("test_maxLogSize Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_maxLogSize: ");
 		if (showStackTrace) tlog.error(err);
@@ -94,12 +96,12 @@ const test_maxLogSize = function() {
 const test_maxNumRollingLogs = function() {
 	nTests++;
 	try {
-	assert.equal(true, log2.getIsRollBySize());
-	assert.ok(6 !== log2.getMaxNumRollingLogs());
-	log2.setMaxNumRollingLogs(6);
-	assert.equal(6, log2.getMaxNumRollingLogs());
-	nPassed++;
-	tlog.info("test_maxNumRollingLogs Passed!");
+		assert.equal(true, log2.getIsRollBySize());
+		assert.ok(6 !== log2.getMaxNumRollingLogs());
+		log2.setMaxNumRollingLogs(6);
+		assert.equal(6, log2.getMaxNumRollingLogs());
+		nPassed++;
+		tlog.info("test_maxNumRollingLogs Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_maxNumRollingLogs: ");
 		if (showStackTrace) tlog.error(err);
@@ -110,13 +112,13 @@ const test_rollPath = function() {
 	const log2PathA = path.resolve(log2_rollfiles);
 	nTests++;
 	try {
-	assert.equal(true, log2.getIsRollBySize());
-	assert.ok(log2.getRollingLogPath().trim() == log2PathA.trim());
-	let log2PathB = path.resolve("./rolledfiles/rolledfiles2");
-	log2.setRollingLogPath("./rolledfiles/rolledfiles2");
-	assert.ok(log2.getRollingLogPath() === log2PathB);
-	nPassed++;
-	tlog.info("test_rollPath Passed!");
+		assert.equal(true, log2.getIsRollBySize());
+		assert.ok(log2.getRollingLogPath().trim() == log2PathA.trim());
+		let log2PathB = path.resolve("./rolledfiles/rolledfiles2");
+		log2.setRollingLogPath("./rolledfiles/rolledfiles2");
+		assert.ok(log2.getRollingLogPath() === log2PathB);
+		nPassed++;
+		tlog.info("test_rollPath Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_rollPath: ");
 		if (showStackTrace) tlog.error(err);
@@ -126,13 +128,29 @@ const test_rollPath = function() {
 const test_isRollBySize = function() {
 	nTests++;
 	try {
-	assert.equal(true, log2.getIsRollBySize());
-	log2.setIsRollBySize(false);
-	assert.equal(false, log2.getIsRollBySize());
-	nPassed++;
-	tlog.info("test_isRollBySize Passed!");
+		assert.equal(true, log2.getIsRollBySize());
+		log2.setIsRollBySize(false);
+		assert.equal(false, log2.getIsRollBySize());
+		nPassed++;
+		tlog.info("test_isRollBySize Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_isRollBySize: ");
+		if (showStackTrace) tlog.error(err);
+	}
+};
+
+const test_ArchiveLogPath = function() {
+	const log2PathA = path.resolve(log2_archivefiles);
+	nTests++;
+	try {
+		assert.ok(log2.getArchiveLogPath().trim() == log2PathA.trim());
+		let log2PathB = path.resolve("./rolledfiles/rolledfiles2");
+		log2.setArchiveLogPath("./rolledfiles/rolledfiles2");
+		assert.ok(log2.getRollingLogPath() === log2PathB);
+		nPassed++;
+		tlog.info("test_ArchiveLogPath Passed!");
+	} catch(err) {
+		tlog.error("Fail TESTING: ArchiveLogPath: ");
 		if (showStackTrace) tlog.error(err);
 	}
 };
@@ -140,13 +158,13 @@ const test_isRollBySize = function() {
 const test_isRollAsArchive = function() {
 	nTests++;
 	try {
-	assert.equal(false, log2.getIsRollAsArchive());
-	log2.setIsRollAsArchive(true);
-	assert.equal(true, log2.getIsRollAsArchive());
-	log2.setIsRollAsArchive(false);
-	assert.equal(false, log2.getIsRollAsArchive());
-	nPassed++;
-	tlog.info("test_isRollAsArchive Passed!");
+		assert.equal(false, log2.getIsRollAsArchive());
+		log2.setIsRollAsArchive(true);
+		assert.equal(true, log2.getIsRollAsArchive());
+		log2.setIsRollAsArchive(false);
+		assert.equal(false, log2.getIsRollAsArchive());
+		nPassed++;
+		tlog.info("test_isRollAsArchive Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_isRollAsArchive: ");
 		if (showStackTrace) tlog.error(err);
@@ -286,15 +304,18 @@ test_maxLogSize();
 test_maxNumRollingLogs();
 test_rollPath();
 test_isRollBySize();
+test_ArchiveLogPath();
 test_isRollAsArchive();
 test_RollingLogsViaProfile();
 
 
 tlog.setLogLevel("notice");
 log2.setMaxLogSizeKb(50);
-log2.setMaxNumRollingLogs(7);
-log2.setRollingLogPath(log2_rollfiles);
+log2.setMaxNumRollingLogs(2);
+//log2.setRollingLogPath(log2_rollfiles);
+log2.setArchiveLogPath(log2_archivefiles);
 log2.setIsRollBySize(true);
+log2.setIsRollAsArchive(true);
 primeBlitz(); // make sure there's something in the log2 logfile
 nTests++;
 const nIterations = 1900;

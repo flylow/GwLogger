@@ -17,7 +17,7 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
-const version = "1.3.1";
+const version = "1.4.0";
 
 class Profiles {
 
@@ -37,6 +37,7 @@ class Profiles {
 		this.maxLogSizeKb = 0; 
 		this.maxNumRollingLogs = 0;
 		this.rollingLogPath = null;
+		this.archiveLogPath = null;		
 		this.path_separator = (process.platform.startsWith("win")) 
 			? "\\" 
 			: "/"; // okay here, but not always trustworthy, see checkPath(fn);
@@ -144,6 +145,7 @@ class Profiles {
 				, maxLogSizeKb: this.maxLogSizeKb
 				, maxNumRollingLogs: this.maxNumRollingLogs
 				, rollingLogPath: this.rollingLogPath
+				, archiveLogPath: this.archiveLogPath
 		};
 		return defJson;
 	}
@@ -297,7 +299,8 @@ class Profiles {
 			, isLocalTz, nYr
 			, isShowMs, isConsoleTs, isRollAsArchive, isRollAtStartup
 			, isRollBySize, maxLogSizeKb
-			, maxNumRollingLogs, rollingLogPath) {
+			, maxNumRollingLogs, rollingLogPath
+			, archiveLogPath) {
 		// Will overwrite existing profile data, if any
 		this.activeProfile = {fn: fn, logLevelStr: logLevelStr, 
 			isFile: isFile, isConsole: isConsole, isColor: isColor
@@ -307,7 +310,8 @@ class Profiles {
 			, isRollAsArchive: isRollAsArchive
 			, isRollAtStartup: isRollAtStartup, isRollBySize: isRollBySize
 			, maxLogSizeKb: maxLogSizeKb, 
-			maxNumRollingLogs: maxNumRollingLogs, rollingLogPath: rollingLogPath};
+			maxNumRollingLogs: maxNumRollingLogs, rollingLogPath: rollingLogPath
+			, archiveLogPath: archiveLogPath};
 		return;
 	}	
 	
@@ -412,7 +416,7 @@ class Profiles {
 		rollingLogPath = (profileCandidate.rollingLogPath) 
 			? path.resolve(profileCandidate.rollingLogPath) 
 			: null;
-		if ((isRollAtStartup || isRollBySize || rollingLogPath) 
+		if ((rollingLogPath) 
 				&& (!this.isValidStr(rollingLogPath) 
 					|| !existsSync(rollingLogPath)) ) { 
 			let err = new Error(msg.errRp01(rollingLogPath));
@@ -420,13 +424,25 @@ class Profiles {
 		}
 		if (maxLogSizeKb === 0 || (!isRollAsArchive && maxNumRollingLogs === 0)) {
 			isRollBySize = false;
-		} 		
+		} 
+
+		let archiveLogPath;
+		archiveLogPath = (profileCandidate.archiveLogPath)
+			? path.resolve(profileCandidate.archiveLogPath)
+			: null;
+		if (archiveLogPath
+					&& (!this.isValidStr(archiveLogPath) 
+					|| !existsSync(archiveLogPath)) ) {
+			let err = new Error(msg.errRp02(archiveLogPath));
+			throw err;	// users entered a bad path, better let them know now.
+		}
 		
 		if (!this.activeProfile) {
 			this.storeProfileData(
 				logLevelStr, isFile, isConsole, isColor, fn, isEpoch, isLocalTz
 				, nYr, isShowMs, isConsoleTs, isRollAsArchive, isRollAtStartup
-				, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath);
+				, isRollBySize, maxLogSizeKb, maxNumRollingLogs, rollingLogPath
+				, archiveLogPath);
 			return;
 		}	
 	}
@@ -490,19 +506,38 @@ class Profiles {
 	}
 
 	setRollingLogPath(rollingLogPath) {
-		rollingLogPath = rollingLogPath.trim();
-		rollingLogPath = path.resolve(rollingLogPath);
-		if (!existsSync(rollingLogPath) ) {
-			return false; // bad path
+		if (rollingLogPath) {
+			rollingLogPath = rollingLogPath.trim();
+			rollingLogPath = path.resolve(rollingLogPath);
+			if (!existsSync(rollingLogPath) ) {
+				return false; // bad path
+			}
 		}
 		this.activeProfile.rollingLogPath = rollingLogPath;
+		
 		writePool.setRollingLogPath(this.ucFn, rollingLogPath);
 		return this.activeProfile.rollingLogPath;
 	}	
 	getRollingLogPath() {
 		return this.activeProfile.rollingLogPath;
 	}
-		
+
+	setArchiveLogPath(archiveLogPath) {
+		if (archiveLogPath) {
+			archiveLogPath = archiveLogPath.trim();
+			archiveLogPath = path.resolve(archiveLogPath);
+			if (!existsSync(archiveLogPath) ) {
+				return false; // bad path
+			}
+		}
+		this.activeProfile.archiveLogPath = archiveLogPath;
+		writePool.setArchiveLogPath(this.ucFn, archiveLogPath);
+		return this.activeProfile.archiveLogPath;
+	}	
+	getArchiveLogPath() {
+		return this.activeProfile.archiveLogPath;
+	}
+	
 
 } // end of Profiles class
 
@@ -519,7 +554,8 @@ const msg = {
 	errYr01: (s1) => {return `ERROR: Profile nYr must be of type Number from 0-4. Found: ${s1}\n`;},
 	errLs01: (s1) => {return `ERROR: Profile maxLogSizeKb must be a zero or greater Number. Found: ${s1} \n`;},
 	errNl01: (s1) => {return `ERROR: Profile maxNumRollingLogs must be of type Number from 0-20. Found: ${s1}\n`;},	
-	errRp01: (s1) => {return `ERROR: Rolling logs require an existing logfile directory, but ${s1} does not exist.\n`;}
+	errRp01: (s1) => {return `ERROR: Rolling logs require an existing directory, but ${s1} does not exist.\n`;},
+	errRp02: (s1) => {return `ERROR: Archived logfiles require an existing directory, but ${s1} does not exist.\n`;}
 };	
 
 const yellow = "\x1b[33m%s\x1b[0m";

@@ -27,7 +27,7 @@ const fs = require("fs");
 
 const getTimeStamp = require("./timestamps.js").getTimeStamp;
 
-const version = "1.3.1";
+const version = "1.4.0";
 
 /*
 Most buffering occurs inside the stream object, as usual for writestreams. 
@@ -43,12 +43,14 @@ let logFiles = {}; // contains LogFileRecs
 // Holds properties and state information for a logfile
 class LogFileRec {
 	constructor (isRollBySize = false, rollingLogPath = null
-		, maxNumRollingLogs = 0, maxLogSizeKb = 0, isRollAsArchive = false) {
+		, maxNumRollingLogs = 0, maxLogSizeKb = 0
+		, isRollAsArchive = false, archiveLogPath = null) {
 		this.isRollBySize = isRollBySize; // Turns on rolling-by-size feature.
 		this.rollingLogPath = rollingLogPath;
 		this.maxNumRollingLogs = maxNumRollingLogs;
 		this.maxLogSizeKb = maxLogSizeKb;
 		this.isRollAsArchive = isRollAsArchive;
+		this.archiveLogPath = archiveLogPath;
 		
 		this.isRolling = false; // currently in the rolling process
 		
@@ -159,6 +161,17 @@ class WritePool {
 	getRollingLogPath(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].rollingLogPath 
+			: null;
+	}
+	
+	setArchiveLogPath(ucFn, archiveRollPath) { 
+		if (!this.isLogFile(ucFn)) return null;
+		logFiles[ucFn].archiveLogPath = archiveRollPath;
+		return true;
+	}	
+	getArchiveLogPath(ucFn) {
+		return (logFiles && logFiles[ucFn]) 
+			? logFiles[ucFn].archiveRollPath 
 			: null;
 	}
 	
@@ -338,34 +351,45 @@ class WritePool {
 	
 	// Determine timestamp and generate a file name for an archive
 	// The name could include a timestamp from the file metadata (last modified 
-	// time), 
-	async createArchiveName(oldFname, rollingLogPath, fnPath) { // will return last-modified timestamp
-		const stats = fs.statSync(oldFname);
-		let ms = stats.mtimeMs; // last time file was modified
-		const currentTimeMs = Date.now();
-		const oneYearMs = 31536000000;
-		// If a machine or network drive isn't setting times correctly
-		// on the file system, then use current time in file name.
-		if ((currentTimeMs - ms) > oneYearMs) ms = currentTimeMs;
+	// time).
+	//
+	// useFileTS means to try and derive timestamp from file's last modified
+	// date, otherwise will use current time (former for fresh logfile, latter
+	// for a rolled file, which could have been on drive a long time.
+	async createArchiveName(oldFname, path, fnPath, useFileTS) {
 		const timeStampFormat = {isShowMs: false, nYr: 4, sephhmmss: ""};
+		const currentTimeMs = Date.now();
+		let ms;
+		if (useFileTS) {
+			const stats = fs.statSync(oldFname);
+			ms = stats.mtimeMs; // last time file was modified
+			const oneYearMs = 31536000000;
+			// If a machine or network drive isn't setting times correctly
+			// on the file system, then use current time in file name.
+			if ((currentTimeMs - ms) > oneYearMs) ms = currentTimeMs;
+		}
 		let ts = getTimeStamp(timeStampFormat, ms);
-		let nuFname = rollingLogPath + "/" + fnPath.name + "_" 
+		if (!path) path = fnPath.dir; // use logfile path
+		let nuFname = path + "/" + fnPath.name + "_" 
 			+ ts + fnPath.ext + ".gz"; // use time from file record
-		if (existsSync(nuFname)) { // naming conflict?
-			ts = getTimeStamp(timeStampFormat, currentTimeMs);
-			nuFname = rollingLogPath + "/" + fnPath.name + "_" 
-				+ ts + fnPath.ext + ".gz";	 // use current time			
+		if (existsSync(nuFname)) { // naming conflict, likely NAS drive problem
+			ts = getTimeStamp(timeStampFormat, currentTimeMs+1);
+			nuFname = path + "/" + fnPath.name + "_" 
+				+ ts + fnPath.ext + ".gz";	 // use current time + 1ms	
 		}		
 		return nuFname;
 	}
 	
 	// Perform logfile roll
 	async rollFiles(ucFn, ws, fn) {	
-		const isArchive = logFiles[ucFn].isRollAsArchive;
+		const fnPath = path.parse(fn);	
 		const maxNum = logFiles[ucFn].maxNumRollingLogs;
 		let nuFname = "";
-		const rollingLogPath = logFiles[ucFn].rollingLogPath;
-		const fnPath = path.parse(fn);
+		let rollingLogPath = logFiles[ucFn].rollingLogPath;
+		if (!rollingLogPath) rollingLogPath = fnPath.dir; // logfile directory!
+		const isArchive = logFiles[ucFn].isRollAsArchive;
+		let archiveLogPath = logFiles[ucFn].archiveLogPath;
+		if (!archiveLogPath) archiveLogPath = rollingLogPath;		
 		let typeOfMove;
 		// Make sure logfile exists (it IS possible to delete a logfile)
 		if (!existsSync(fn)) {
@@ -375,12 +399,17 @@ class WritePool {
 		if (maxNum > 0) {
 			nuFname = rollingLogPath + "/" + fnPath.name + "_" 
 				+ (""+1).padStart(3,0) + fnPath.ext; // to be most recently rolled				
-			await this.rollLogtrain(ucFn, fnPath, rollingLogPath, isArchive);	
+			await this.rollLogtrain(ucFn, fnPath, rollingLogPath
+						, isArchive, archiveLogPath);	
 		} else if (isArchive) {
-			nuFname = rollingLogPath + "/" + fnPath.name + "_" 
+			nuFname = await this.createArchiveName(fnPath.name
+				, archiveLogPath, fnPath, false);
+				/*
+			nuFname = archiveLogPath + "/" + fnPath.name + "_" 
 				+ getTimeStamp({isEpoch: false, isLocalTz: false, isShowMs: false, nYr: 4, sephhmmss: ""})
 				//+ (new Date()).toISOString()
 				+ fnPath.ext + ".gz"; 
+				*/
 		}			
 		// roll current logfile
 		try {
@@ -406,7 +435,7 @@ class WritePool {
 		return false; // so don't immediately rollNewStream
 	}
 
-	async rollLogtrain(ucFn, fnPath, rollingLogPath, isArchive) {
+	async rollLogtrain(ucFn, fnPath, rollingLogPath, isArchive, archiveLogPath) {
 		let oldFname, nuFname;
 		const maxNum = logFiles[ucFn].maxNumRollingLogs;
 		try {
@@ -417,7 +446,8 @@ class WritePool {
 				if (oldFnum === maxNum 
 						&& await accessFile(oldFname) ) {
 					if (isArchive) {
-						let nuFname = await this.createArchiveName(oldFname, rollingLogPath, fnPath);
+						let nuFname = await this.createArchiveName(oldFname
+							, archiveLogPath, fnPath, true);
 						try {
 							await moveFileZip(oldFname, nuFname, true);
 						} catch(err) {
@@ -646,6 +676,7 @@ class WritePool {
 			// These activeProfile values are from JSON profile, env vars, 
 			// and/or built-in defaults
 			this.setIsRollAsArchive(ucFn, activeProfile.isRollAsArchive);
+			this.setArchiveLogPath(ucFn, activeProfile.archiveLogPath);
 			this.setIsRollAtStartup(ucFn, activeProfile.isRollAtStartup);
 			this.setMaxLogSizeKb(ucFn, activeProfile.maxLogSizeKb);
 			this.setMaxNumRollingLogs(ucFn, activeProfile.maxNumRollingLogs);

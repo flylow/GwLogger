@@ -20,7 +20,7 @@ const renameProm = promisify(fs.rename);
 const unlinkProm = promisify(fs.unlink);
 const truncProm = promisify(fs.truncate);
 const accessProm = promisify(fs.access);
-const version = "1.3.1";
+const version = "1.4.0";
 
 const getVersion = () => {
 	return version;
