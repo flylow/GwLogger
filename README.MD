@@ -359,7 +359,6 @@ Of course, most log levels (except off and all) are API methods and also part of
 log.`<level>`(`<data to log>`). You may also comma-separate data items:
 `log.dev("Value of object vehicle is: ", vehicle);`
 
-<a name="msgHandling"></a>
 ### Error Handling and Events in GwLogger
 Although hopefully rare, GwLogger can throw errors, generally during one of three different activities:
 1. Startup/instantiation, due to a configuration issue. A common cause of errors
@@ -387,7 +386,7 @@ log.on("buffer", handler);
 ```
 GwLogger-thrown error objects and GwLogger events contain a message ID with attribute name gwMsgCode.
 
-Each event type also has a human-friendly message, and error events have an ordinary error object with stackTrace. Warn events often, but not always, have a stackTrace. You can use the [table](#msgHandling "table") to see which messages have a stackTrace object, as well as a list of message codes.
+Each event type also has a human-friendly message, and error events have an ordinary error object with stackTrace. Warn events often, but not always, have a stackTrace. You can use this [table](#msgHandling "table") to see which messages have a stackTrace object, as well as a list of message codes.
 
 Error events are similar to thrown errors, if your app doesn\'t listen and handle them, the process will exit abruptly.
 
@@ -423,21 +422,21 @@ Although not an event, this is a good place to mention that a logging statement 
 ```javascript
 	const GwLogger = require("<path>/GwLogger.js").GwLogger;
 	const handler = (gwMsgCode, message, obj) => {console.log(gwMsgCode, message, obj); }
-    const logtest = new GwLogger("off", true, true, "./logfiles/templogger.log");
+	const logtest = new GwLogger("off", true, true, "./logfiles/templogger.log");
 	logtest.setIsRollAtStartup(false);
 	logtest.setIsRollBySize(false);
 	logtest.on("buffer", handler);
 	logtest.setLogLevel("info");
-    let bufferOk, n=0;
-    while (n++ < 300) {
-      bufferOk = logtest.info("Wow, logging timestamps in a loop is really fun!! n=", n,
-          ", last buff:", bufferOk, ", now is: ", Date.now());
-    }
+	let bufferOk, n=0;
+	while (n++ < 300) {
+		bufferOk = logtest.info("Wow, logging timestamps in a loop is really fun!! n=", n,
+			", last buff:", bufferOk, ", now is: ", Date.now());
+	}
 ```
 bufferOk will be true if the logging buffer is < 16K, the same as with Node streams, but also only if GwLogger\'s internal queue isn\'t busy (during rolling). Otherwise,  bufferOk will be false to indicate Node\'s over-the-highwater-mark of 16K and/or a rapidly filling logger queue. When bufferOk is false, the program heap is rapidly growing, which could cause slow-downs during garbage collection. No error is thrown with these conditions, but there could be efficiency problems. Related note, under very intense logging, priority goes to logging into buffers (a synchronous activity), rolling will often not occur, and actual writing buffer contents to file may lag (both are async activities). 
 
 As mentioned, this info about buffers\' states and events is rarely needed, but it\'s here.
-
+<a name="msgHandling"></a>
 ### GwLogger 1.5.0 Error and Message Codes 
 A message text is created and sent for each event. That message would have other details included. Most errors and warnings have an associated stackTrace object. Buffer messages do not have stackTraces, but in their place have an object with detailed information about the buffer and internal queues.
 
