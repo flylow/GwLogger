@@ -20,57 +20,46 @@ const { ProfileClass } = require("./Profiles");
 const getTimeStamp = require("./timestamps.js").getTimeStamp;
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
+const EventEmitter = require("events");
 
-const version = "1.4.0";
+const version = "1.5.0";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
+		this.eventEmitter = new EventEmitter();
+		// Register logger and get a session-unique logger ID
+		this.loggerId = writePool.getLoggerId(this.eventEmitter);
 		this.stateRecord = {startTime: (new Date()).toISOString(), errors: []};
 		this.profile = null;
 		this.logLevelStr = undefined;
 		if (typeof param1 === "object" && param1.profileFn) {
-			if (!existsSync(param1.profileFn)) {				
-				console.error(yellow, msg.warNoJson01(param1.profileFn));
-				param1 = undefined;
-				this.logLevelStr = param1;
-				this.profile = new ProfileClass();				
+			if (!existsSync(param1.profileFn)) { // Does profile exist?	
+				let errorList = [msg.errNoJson01(param1.profileFn)];			
+				throw {location: "GwLogger.constructor"
+				, gwErrCode: 221
+				, message: msg.errConfig
+				, errorList: errorList};				
 			} else {
 				isConsole = undefined;
 				isFile = undefined;
 				fn = undefined;
-				this.profile = new ProfileClass(param1.profileFn);
+				this.profile = new ProfileClass(param1.profileFn // profile did exist!
+					, this.loggerId, this.eventEmitter);
 			}
 		} else {
 			this.logLevelStr = param1;
-			this.profile = new ProfileClass();
+			this.profile = new ProfileClass(null
+					, this.loggerId, this.eventEmitter, this.logLevelStr, isConsole, isFile, fn);
 		}
 		// setup env vars, json, or built-ins as defaults
 		this.activeProfile = this.profile.getActiveProfile();
 		this.logLevels = this.profile.getLogLevels();
 		this.wsSources = {global: "global", custom: "custom"};
-		if (this.profile.isValidStr(this.logLevelStr)) {
-			this.logLevelStr = this.logLevelStr.trim().toUpperCase();
-		}
-		if (!this.profile.isValidStr(this.logLevelStr) 
-				|| this.logLevels
-					.findIndex(level => level === this.logLevelStr)<0) {
-			if (this.logLevelStr) { // typo or such. Post an error message.
-				let stack = this.profile.getStackTrace(new Error());
-				console.error(yellow, msg.warLL01(this.logLevels.join()
-					, this.logLevelStr), stack);
-				this.logLevelStr = "NOTICE"; 			
-				this.logLevel = 
-					this.logLevels.findIndex(level => level === this.logLevelStr);
-			} else {
-				this.logLevelStr = this.activeProfile.logLevelStr;
-				this.logLevel = 
-					this.logLevels.findIndex(level => level === this.logLevelStr);
-			}
-		} else {
-			this.logLevel = this.logLevels
-				.findIndex(level => level === this.logLevelStr);
-		}
-		this.profile.activeProfile.logLevelStr = this.logLevelStr; 
+
+		this.logLevelStr = this.activeProfile.logLevelStr;
+		this.logLevel = this.logLevels
+			.findIndex(level => level === this.logLevelStr);
+			
 		this.moduleName = ""; // short name/description of source file
 		this.timeStampFormat = {};
 		this.timeStampFormat.isEpoch = this.activeProfile.isEpoch;// TS in MS
@@ -85,53 +74,60 @@ class GwLogger {
 		this.setIsColor(this.isColor);
 		this.isConsoleTs = this.activeProfile.isConsoleTs;
 		
-		this.isConsole = (isConsole === undefined) 
-			? this.activeProfile.isConsole // get the default 
-			: isConsole;
-		this.profile.setIsConsole(this.isConsole);
-		this.isFile = (isFile === undefined) 
-			? this.activeProfile.isFile 
-			: isFile;
-		this.profile.setIsFile(this.isFile);
-		this.fn = this.profile.isValidStr(fn) 
-			? fn.trim() 
-			: null;
-		this.ucFn = this.fn 
+		this.isConsole = this.activeProfile.isConsole;
+		this.isFile = this.activeProfile.isFile;
+		this.fn = this.activeProfile.fn;
+			
+		this.ucFn = (this.fn) 
 			? writePool.getUcFn(this.fn) 
 			: null;	
 		this.wsSource = (this.fn) 
 			? this.wsSources.custom 
 			: this.wsSources.global;
-		if (this.fn) {
-			this.profile.setFn(this.fn);
-			this.profile.setUcFn(this.ucFn);
-		}
-			
+		this.profile.setUcFn(this.ucFn);
+
 		this.stateRecord.wsSource = this.wsSource;
 		this.stateRecord.initialActiveProfile = this.activeProfile;
 		
-		if (this.wsSource === this.wsSources.global && this.profile.getFn()
-				&& this.logLevel > 0 && this.isFile) {
-			this.fn = this.profile.getFn();
+		if (fn && this.logLevel > 0 && this.isFile) {
 			this.ensureWriteStream();
 		}
-		else if (this.wsSource === this.wsSources.custom 
-				&& this.fn 
-				&& this.logLevel > 0 
-				&& this.isFile) {
-			this.ensureWriteStream();
-		} 		
-	}
+
+		// GwLogger listener: a serious issue required shutting off logging.
+		this.eventEmitter.on("GwLoggerSystemMsgx42021", (gwMsgCode) => {
+			if (gwMsgCode > 3220 && gwMsgCode < 3225) {
+				this.setIsFile(false); // turn-off logging to file for this logger
+			}
+		});
+	} // end of constructor.
+
 	
 	// Test Instrumentation
 	getProfilesInstance() {
 		return this.profile;
 	}
 	
-	setModuleName(mn) {		
-		this.moduleName = mn.trim();
+	// EventEmitter facade
+	on(eventType, listener) {
+		this.eventEmitter.addListener(eventType, listener);
+	}
+	once(eventType, listener) {
+		this.eventEmitter.once(eventType, listener);
+	}
+	off(eventType, listener) {
+		this.eventEmitter.removeListener(eventType, listener);
+	}
+	listeners(eventType) {
+		return this.eventEmitter.listeners(eventType);
+	}
+	listenerCount(eventType) {
+		return this.eventEmitter.listenerCount(eventType);
 	}
 	
+	
+	setModuleName(mn) {		
+		this.moduleName = mn.trim();
+	}	
 	getModuleName() {
 		return this.moduleName;
 	}
@@ -150,8 +146,7 @@ class GwLogger {
 
 	setIsEpoch(b) {
 		this.timeStampFormat.isEpoch = b;
-	}
-	
+	}	
 	getIsEpoch() {
 		return this.timeStampFormat.isEpoch;
 	}
@@ -159,7 +154,6 @@ class GwLogger {
 	setIsLocalTz(b) {
 		this.timeStampFormat.isLocalTz = b;
 	}
-	
 	getIsLocalTz() {
 		return this.timeStampFormat.isLocalTz;
 	}
@@ -169,23 +163,20 @@ class GwLogger {
 			this.timeStampFormat.nYr = n;
 		}
 	}
-	
 	getYearDigits() {
 		return this.timeStampFormat.nYr;
 	}
 	
 	setIsShowMs(b) {
 		this.timeStampFormat.isShowMs = b;
-	}
-	
+	}	
 	getIsShowMs() {
 		return this.timeStampFormat.isShowMs;
 	}	
 	
 	setIsConsoleTs(b) {
 		this.isConsoleTs = b;
-	}
-	
+	}	
 	getIsConsoleTs() {
 		return this.isConsoleTs;
 	}
@@ -193,14 +184,12 @@ class GwLogger {
 	setSepCharFile(charStr) {
 		this.sepCharFile = charStr;
 	}
-	
 	getSepCharFile() {
 		return this.sepCharFile;
 	}	
 	setSepCharConsole(charStr) {
 		this.sepCharConsole = charStr;
-	}
-	
+	}	
 	getSepCharConsole() {
 		return this.sepCharConsole;
 	}
@@ -216,8 +205,7 @@ class GwLogger {
 			yellow = "";
 			green = "";
 		}
-	}
-	
+	}	
 	getIsColor() {
 		return this.isColor;
 	}
@@ -227,12 +215,9 @@ class GwLogger {
 			this.depthNum = dn;
 		}
 	}
-	
 	getDepthNum() {
 		return this.depthNum;
-	}
-	
-	
+	}	
 
 	setLogLevel(llStr) { // sets string and numeric
 		let logLevelTmp, logLevelStr;
@@ -252,8 +237,7 @@ class GwLogger {
 		if (this.logLevel > 0 && this.isFile) {
 			this.ensureWriteStream();
 		}		
-	}
-	
+	}	
 	getLogLevel() {  // returns a string
 		return this.profile.getLogLevel();
 	}
@@ -261,8 +245,7 @@ class GwLogger {
 	setIsConsole(b) {
 		this.isConsole = b;
 		this.profile.setIsConsole(b);
-	}
-	
+	}	
 	getIsConsole() {
 		return this.profile.getIsConsole();
 	}
@@ -273,8 +256,7 @@ class GwLogger {
 		if (b && this.logLevel > 0) {
 			this.ensureWriteStream();
 		}
-	}
-	
+	}	
 	getIsFile() {
 		return this.profile.getIsFile();
 	}
@@ -371,7 +353,7 @@ class GwLogger {
 	ensureWriteStream() {
 		this.stateRecord.ensureWriteStreamTime = (new Date()).toISOString();
 		if (this.wsSource === this.wsSources.custom) {
-				this.profile.newCustomWriteStream(this.getFn());
+			this.profile.newCustomWriteStream(this.getFn());
 		}
 		else if (this.wsSource === this.wsSources.global) {
 			// use the default filename and common writeStream
@@ -448,21 +430,9 @@ class GwLogger {
 					+ this.moduleName + ":" + this.sepCharFile + t 
 				: timestamp + this.sepCharFile + logLevelStr+":" + this.sepCharFile + t;
 			try {
-				bufferOk = writePool.write(this.ucFn, txt+"\n");
+				bufferOk = writePool.write(this.loggerId, this.ucFn, txt+"\n");
 			} catch(err) {
-				console.error(msg.errWrite01, err);
-				if (err && err.errName 
-						&& (err.errName === "nofileorstreamfatal" 
-							|| err.errName === "cannotwritefatal")) {
-					this.isFile = false; // give up logging to file
-					console.error(msg.errWrite02); // surface state to user/stderr
-					bufferOk = false;
-					this.stateRecord.errors.push(err);
-					return bufferOk;
-				} else {
-					console.error(msg.errWrite03(this.fn), err);
-					throw err;
-				}
+					this.eventEmitter.emit("error", 1012, msg.errWrite03(this.fn), err);
 			}
 		}
 		return bufferOk;
@@ -474,72 +444,65 @@ class GwLogger {
 		if (this.logLevel>0) {
 			return this.write2log(1, this.logLevels[1], false, args);
 		}
-		return;
+		return null;
 	}
 	
 	error(...args) {
 		if (this.logLevel>1) {
 			return this.write2log(2, this.logLevels[2], false, args);
 		}
-		return;
+		return null;
 	}
 	
 	warn(...args) {
 		if (this.logLevel>2) {
 			return this.write2log(3, this.logLevels[3], false, args);
 		}
-		return;
+		return null;
 	}
 	
 	notice(...args) {
 		if (this.logLevel>3) {
 			return this.write2log(4, this.logLevels[4], false, args);
 		}
-		return;
+		return null;
 	}
 	
 	info(...args) {
 		if (this.logLevel>4) {
 			return this.write2log(5, this.logLevels[5], this.isColor, args);
 		}
-		return;
+		return null;
 	}
 	
 	dev(...args) {
 		if (this.logLevel>5) {
 			return this.write2log(6, this.logLevels[6], this.isColor, args);
 		}
-		return;
+		return null;
 	}
 	
 	debug(...args) {
 		if (this.logLevel>6) {
 			return this.write2log(7, this.logLevels[7], this.isColor, args);
 		}
-		return;
+		return null;
 	}
 	
 	trace(...args) {
 		if (this.logLevel>7) {
 			return this.write2log(8, this.logLevels[8], this.isColor, args);
 		}
-		return;
+		return null;
 	}
 	
 } // end of class GwLogger
 
 
 const msg = {
-	errCf01: (s1) =>  {return `ERROR in GwLogger creating initial logfile for: 
-${s1}\n`;},
-	warNoJson01: (s1) =>  {return `WARNING: JSON profile ${s1} not found, 
-continuing with default profile`;},
-	warLL01: (s1, s2) =>  {return `WARNING: Log level must be one of: ${s1}
-But, found log level of: ${s2}.
->>Log level will now be set to NOTICE and will continue.<<\n`;},
-	errWrite01: "Error: GwLogger error writing to logfile:\n",
-	errWrite02: "Error: Logging to file has been turned off due to errors.",
-	errWrite03: (s1) =>  {return `ERROR in GwLogger: fn is: ${s1}\n`;},
+	errConfig: "ERROR: Configuration error during GwLogger startup. See errorList for details.",	
+	errNoJson01: (s1) =>  {return `ERROR: JSON profile ${s1} not found`;},
+	errWrite03: (s1) =>  {return `ERROR: Unknown error while writing to logfile, fn is: ${s1}\n`;}
 };	
 
 let red = "\x1b[31m%s\x1b[0m";

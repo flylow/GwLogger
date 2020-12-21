@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 // -- end of require section
 
-const versionRef = "1.4.0"; // set to target version of GwLogger
+const versionRef = "1.5.0"; // set to target version of GwLogger
 const showStackTrace = true;
 
 const getRandomInt = (max) => {

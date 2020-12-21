@@ -1,13 +1,12 @@
 "use strict";
 
 // A directive for exceptions to ESLint no-init rule
-/*global console, process, require */ 
+/*global console, process, setTimeout, require */ 
 
 const GwLogger = require("../GwLogger").GwLogger;
 const existsSync = require("fs").existsSync;
 const unlinkSync = require("fs").unlinkSync;
 const path = require("path");
-const fs = require("fs");
 const getTimeStamp = require("../timestamps.js").getTimeStamp;
 let profiles;
 let assert;
@@ -15,21 +14,22 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.4.0"; // version number of targeted GwLogger.
-	
-const tlog = new GwLogger("notice", true, true
+const versionRef = "1.5.0"; // version number of targeted GwLogger.
+const tlog = new GwLogger("notice", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
+tlog.on("warn", (msgCode, msg) => {console.log("************** === code is", msgCode, ", msg is: ", msg);});	
+
+tlog.setIsFile(true);
 tlog.notice("===> UnitTestsGwLogger_02.js is running, results logfile is: "
 	, tlog.getFn()); //./logfiles/Unit Test Results.log
-	
 const showStackTrace = true;
 let nTests = 0; // # of tests attempted
 let nPassed = 0;
 
 function replacer(key, value) {
   // Filtering out properties
-  if (key === "gwWriteStream") {
+  if (key === "gwWriteStream" || key === "loggerId") {
     return undefined;
   }
   return value;
@@ -64,7 +64,7 @@ const test_creationStories = function() {
 		assert.ok(!isLogExists); // verify disappearance
 		const loggerTest1 = new GwLogger();// should NOT create new log file (yet)
 		const fn = loggerTest1.getFn();
-		 // ensure we disappeared the correct one
+		// ensure we disappeared the correct one
 		assert.ok(fn === "./logfiles/logJsonFile.log", "fn was: ", fn);
 		isLogExists = existsSync(fn);
 		assert.ok(!isLogExists);
@@ -129,6 +129,7 @@ const test_getJsonProfile = function() {
 		let jsonReturnStr = JSON.stringify(jsonReturn, replacer, 2);
 		jsonReturn = JSON.parse(jsonReturnStr);
 	// Compare what is stored with what we expected	
+//	console.log("UT_02: \n",jsonDefTest2, "\n", jsonReturn);
 		assert.deepStrictEqual(jsonDefTest2, jsonReturn); 
 		tlog.info("test_getJsonProfile Passed!");
 		nPassed++;
@@ -225,8 +226,6 @@ const test_getTimeStamp = function() {
 	timeStampFormat.nYr = 0; // number of digits for the year in timestamps, 0-4	
 	timeStampFormat.sephhmmss = ":";
 	try {
-		let stats = fs.statSync("./logfiles/Unit Test Results.log");
-		let ms = stats.mtimeMs; // last time file was modified
 		ts = getTimeStamp(timeStampFormat);
 		let testTs = Date.now();
 		// the constant number is a TS from an definite earlier time than the test
@@ -303,9 +302,9 @@ const test_customFileNameErrors = function() {
 // Test that writepool returns the same stream for two distinct custom loggers, 
 // as long as using the same logfile.
 const test_customStreamPools = function() {
-	let logger = new GwLogger("trace", true, false //false, true
+	let logger = new GwLogger("warn", true, false //false, true
 		, "./logfiles/logJsonFile.log"); // same logfile as tlog.
-	logger.trace("This logger named 'logger' from UT_02 exists only to ensure "
+	logger.info("This logger named 'logger' from UT_02 exists only to ensure "
 		+ "logJsonFile profile exists for test_customStreamPools test case.");
 	nTests++;
 	try {
@@ -319,6 +318,36 @@ const test_customStreamPools = function() {
 	} catch(err) {
 		tlog.error("Fail TESTING: test_customStreamPools");
 		if (showStackTrace) tlog.error(err);
+	}
+};
+
+const test_bufferOk = function() {
+	nTests++;
+	const logtest = new GwLogger("off", false, true, "./logfiles/logtest.log");
+	logtest.setIsRollBySize(false);
+	logtest.setIsRollAtStartup(false);
+	logtest.setLogLevel("info");
+	const buffHandler = (msgCode, msg, details) => {
+			logtest.info("** Event is", msgCode, ", msg is: ", msg, ", details are: ", details);	
+	};
+	logtest.on("buffer", buffHandler);	
+	let bufferOk, n=0, markN = 0;	
+	try {
+		while (n++ < 3000) {
+			bufferOk = logtest.info("Wow, logging timestamps in a loop is really fun!! n=", n
+				, ", last buff:", bufferOk, ", now is: ", Date.now());
+			if (markN === 0 && !bufferOk) {
+				markN = n;
+			}
+		}
+		assert.ok(markN>0, "failed to load buffer > 16K");
+		tlog.info("test_customStreamPools Passed! process.cwd()=", process.cwd());
+		nPassed++;
+	} catch(err) {
+		tlog.error("Fail TESTING: test_bufferOk");
+		if (showStackTrace) tlog.error(err);
+	} finally {
+		logtest.off("buffer", buffHandler);
 	}
 };
 
@@ -347,8 +376,8 @@ test_profileFileNameErrors();
 test_customFileNameErrors();
 test_customStreamPools();
 
+test_bufferOk();
 
-tlog.notice("\nTotal UnitTestsGwLogger_02.js Unit Tests: " + nTests 
-	+ ", Tests Passed: " + nPassed+"\n\n");
-
-
+setTimeout(() => {tlog.notice("\nTotal UnitTestsGwLogger_02.js Unit Tests: " + nTests 
++ ", Tests Passed: " + nPassed+"\n\n");}, 1000);
+	

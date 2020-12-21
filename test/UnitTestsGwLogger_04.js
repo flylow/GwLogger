@@ -1,20 +1,29 @@
 "use strict";
 // A directive for exceptions to ESLint no-init rule
-/*global console, setTimeout, require */ 
+/*global console, process, setTimeout, require */ 
 
 const GwLogger = require("../GwLogger").GwLogger;
 const path = require("path");
 const existsSync = require("fs").existsSync;
 const statSync = require("fs").statSync;
 const unlinkSync = require("fs").unlinkSync;
+const openSync = require("fs").openSync;
+const closeSync = require("fs").closeSync;
+
 let assert;
 assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.4.0"; // set to target version of GwLogger
-const tlog = new GwLogger("notice", true, true
+const versionRef = "1.5.0"; // set to target version of GwLogger
+const tlog = new GwLogger("off", true, true
 	, "./logfiles/Unit Test Results.log");
+
+tlog.on("buffer", (gwErrCode, message) => { console.log("In UT_04, tlog eventEmitter BUFFER is now: ", gwErrCode, message); });	
+tlog.on("error", (gwErrCode, message, stackTrace) => { console.log("In UT_04, tlog eventEmitter ERROR is: ", gwErrCode, message, stackTrace); });
+tlog.on("warn", (gwErrCode, message, stackTrace) => { console.log("In UT_04, tlog eventEmitter WARNING is: ", gwErrCode, message, stackTrace); });
+
+tlog.setLogLevel("notice");	
 tlog.notice("-----------------------------  Unit Testing Begins "
 	+ "-----------------------------------------------");
 tlog.setModuleName("UT_04");
@@ -26,6 +35,14 @@ const log2_rollfiles = "./rolledfiles";
 const log2_archivefiles = "./rolledfiles/rolledfiles2";
 
 const log2 = new GwLogger("OFF", false, true, log2_logfile);
+
+log2.on("warn", (gwMsgCode, message, stackTrace) => {
+	tlog.info("In UT_04, log2 eventEmitter WARNING is: ", gwMsgCode, message); 
+	if (stackTrace) tlog.info(stackTrace);
+});
+log2.on("error", (gwMsgCode, message, stackTrace) => { console.log("In UT_04, log2 eventEmitter ERROR is: ", gwMsgCode, message, stackTrace); });
+
+
 log2.setMaxLogSizeKb(10);
 log2.setMaxNumRollingLogs(3);
 log2.setRollingLogPath(log2_rollfiles);
@@ -33,6 +50,7 @@ log2.setArchiveLogPath(log2_archivefiles);
 log2.setIsRollBySize(true);
 log2.setIsRollAtStartup(true);
 log2.setLogLevel("debug");
+
 
 const showPercentage = function(msg, percentage){
     process.stdout.clearLine();
@@ -61,6 +79,10 @@ const test_getVersion = function() {
 let logPro; // only for use in testPrereqs
 const testPrereqs = function() {
 	nTests++;
+	// Create pre-req file if missing
+	if (!existsSync("./logfiles/Profile Param Test Log.log")) {
+		closeSync(openSync("./logfiles/Profile Param Test Log.log", "w")); 
+	}	
 	try {
 		// First, make sure that UT_02 (or a previous run of this test) has 
 		// created the required logfile.
@@ -70,7 +92,8 @@ const testPrereqs = function() {
 		// logger on it. The results will be inspected later in
 		// test_RollingLogsViaProfile
 		logPro = new GwLogger( 
-			{ profileFn: "./GwLogger_Profile Param Test Log.json" } );		
+			{ profileFn: "./GwLogger_Profile Param Test Log.json" } );	
+		logPro.on("error", (gwErrCode, message, stackTrace) => { console.log("In UT_04, logPro eventEmitter ERROR is: ", gwErrCode, message, stackTrace); });
 		nPassed++;
 	} catch(err) {
 		tlog.error("Fail TESTING: testPrereqs: ");
@@ -171,12 +194,12 @@ const test_isRollAsArchive = function() {
 	}
 };
 
-const test_RollingLogsViaProfile = function(retryNum=0) {	
+const test_RollingLogsViaProfile = function(retryNum=0) {
 	if (retryNum === 0) nTests++;
 	if (retryNum < 20 && !existsSync("./logfiles/Profile Param Test Log.log")) {
 		setTimeout( () => {
 			test_RollingLogsViaProfile(retryNum+1);
-		}, 50)
+		}, 50);
 	}
 	else try {
 		if (retryNum > 2) console.log("retryNum is: "
@@ -207,29 +230,28 @@ const test_RollingLogsViaProfile = function(retryNum=0) {
 			for (let i=0; i< 100; i++) { 
 				logPro.dev("now is the time for " + i 
 					+ " good men to come to the aid");
-			};
+			}
 		}, 200);			
 		nPassed++;
 		tlog.info("test_RollingLogsViaProfile Passed!");
 	} catch(err) {
 		tlog.error("Fail TESTING: test_RollingLogsViaProfile: \n", err);
-		tlog.error("stateRecord is: ", logPro.getStateRecord());
+		if (logPro) tlog.error("stateRecord is: ", logPro.getStateRecord());
 		if (showStackTrace) tlog.error(err);
 	}
 };
 
 //
 // Test what happens if something or someone deletes a logfile while we're 
-// logging to it. If there is no exception thrown, we call that a 'pass', 
-// but that is really a smoke-test.
+// logging to it. If there is no exception thrown, we call that a "pass."
 //
 // Unfortunately, the entire logfile that was deleted is, well, gone forever.
 
-let n = 50, test_recovery_pass = true;
+let n = 1000, test_recovery_pass = true;
 const primeBlitz = () => {
 	for (let i=0; i < n; i++) {
 		log2.info("i = ", i, ", *".padEnd(95, "*") );
-	}	
+	}
 };
 const test_recovery = function(n, iters, isFileDelete) {
 		if (n < iters && test_recovery_pass) {
@@ -251,6 +273,8 @@ const test_recovery = function(n, iters, isFileDelete) {
 						console.log("Completed UNLINKing/deleting log file in "
 							+ "test_recovery, n is: ", n, ", <<<<<<<<<<<<<<<");
 					} else {
+						nRetry++;
+						if (nRetry > 2) throw "File does not exist (is isFile true?)";
 						n = n - 10; // ensures file exists before unlinking
 					}
 				} catch(err) {
@@ -268,7 +292,7 @@ const test_recovery = function(n, iters, isFileDelete) {
 					}
 					log2.info("timeout log, n=",n, "..., *".padEnd(95, "*"));
 					if (!test_recovery_pass) 
-						console.log("test_recovery_pass is false, still going");
+						console.log("test_recovery has failed");
 				} catch(err) {
 					console.error(" test_recovery logging failed, n=",n
 						, ", error is: \n", err);
@@ -312,14 +336,13 @@ test_RollingLogsViaProfile();
 tlog.setLogLevel("notice");
 log2.setMaxLogSizeKb(50);
 log2.setMaxNumRollingLogs(2);
-//log2.setRollingLogPath(log2_rollfiles);
 log2.setArchiveLogPath(log2_archivefiles);
 log2.setIsRollBySize(true);
 log2.setIsRollAsArchive(true);
 primeBlitz(); // make sure there's something in the log2 logfile
 nTests++;
 const nIterations = 1900;
-const onePercent = Math.round(nIterations/100);
+let nRetry = 0;
 test_recovery(0, nIterations, true);
 
 

@@ -14,5 +14,5 @@ node UnitTestsGwLogger_03.js
 call envUnset.bat
 node UnitTestsGwLogger_04.js
 node --experimental-modules  UnitTestsGwLogger_05.mjs
-
+node UnitTestsGwLogger_06.js
 

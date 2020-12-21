@@ -10,6 +10,11 @@
 		
 		cTime, milliseconds to use as current time for creating a Timestamp.
 */
+const version = "1.5.0";
+
+const getVersion = () => {
+	return version;
+};
 		
 const getTimeStamp = function(tsFormat, cTime=null) {
 	if (tsFormat.isEpoch) return Date.now(); //UNIX Epoch
@@ -75,4 +80,5 @@ const getTimeStamp = function(tsFormat, cTime=null) {
 		+ tsFormat.sephhmmss + minutes + tsFormat.sephhmmss + seconds + ms + tz); 
 };
 	
-exports.getTimeStamp = getTimeStamp;	
+exports.getTimeStamp = getTimeStamp;
+exports.getVersion = getVersion;

@@ -1,5 +1,5 @@
 
- -- Test descriptions for GwLogger Version 1.3.x --
+ -- Test descriptions for GwLogger Version 1.5.x --
  
  Unit and Functional tests are not included with the npm package, since they
  are never required by normal user-developers, but for use in GwLogger development
@@ -24,7 +24,7 @@
    2. gwlogger/test/rolledfiles
    3. gwlogger/test/rolledfiles/rolledfiles2
 
- Unit tests 1,2,4, and 5 can be executed independently, however UnitTestsGwLogger_03 requires
+ Unit tests 1,2,4, 5 and 6 can be executed independently, however UnitTestsGwLogger_03 requires
  prep work to set up the environment variables (see files envSet.bat and 
  envUnset.bat or envSet.sh on Linux systems), and UnitTestsGwLogger_02 should 
  run sometime before UnitTestsGwLogger_04 to ensure a certain logfile exists 
@@ -63,6 +63,7 @@
 		test_profileFileNameErrors();
 		test_customFileNameErrors(); 
 		test_customStreamPools();
+		test_bufferOk();
 	gwlogger\test>node UnitTestsGwLogger_02.js	
 		
  3. UnitTestsGwLogger_03.js,  test for environment variables use in profiles.
@@ -90,7 +91,13 @@
 		test_getVersion(); // if this works okay, then GwLogger worked okay with ES6 modules
 	gwlogger\test>node UnitTestsGwLogger_05.mjs	
 		or node --experimental-modules UnitTestsGwLogger_05.mjs
-
+		
+ 6. UnitTestsGwLogger_06.js -- A unit test for checking methods that verify and report a valid 
+	configuration at start-up/instantiation of a new logger. Although busy, there is only one 
+	test case. This test is new in version 1.5.0.
+		testProfileConfig();
+	gwlogger\test>node UnitTestsGwLogger_06.js	
+		
  >> Functional tests log to console and/or file, and must be verified correct manually.
  
  Functional tests can be executed independently, or with FTRunner.bat. All functional tests require

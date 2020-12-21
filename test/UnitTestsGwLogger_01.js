@@ -19,12 +19,14 @@ if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // need to check version numbers in all source files
 const { ProfileClass } = require("../Profiles");
 const fsprom = require("../fsprom.js");
+const timestamps = require("../timestamps.js");
 const writePool = require("../WritePool.js");
 // -- end of require section
 
-const versionRef = "1.4.0"; // set to target version of GwLogger	
-const tlog = new GwLogger("notice", true, "true"
+const versionRef = "1.5.0"; // set to target version of GwLogger	
+const tlog = new GwLogger("off", true, "true"
 	, "./logfiles/Unit Test Results.log");
+tlog.setLogLevel("notice");
 tlog.notice("-----------------------------  Unit Testing Begins "
 	+ "-----------------------------------------------");
 tlog.setModuleName("UT_01");
@@ -47,6 +49,8 @@ const test_getVersion = function() {
 	assert.equal(ver, versionRef);
 	ver = fsprom.getVersion();
 	assert.equal(ver, versionRef);
+	ver = timestamps.getVersion();
+	assert.equal(ver, versionRef);	
 	nPassed++;
 	tlog.info("test_getVersion Passed!");
 	} catch(err) {
@@ -206,7 +210,7 @@ const test_setIsConsole = function() {
 	}
 };
 
-const test_setIsColor = function() {	
+const test_setIsColor = function() {
 	nTests++;
 	try {
 		let log = new GwLogger();

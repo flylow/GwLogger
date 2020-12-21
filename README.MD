@@ -1,26 +1,23 @@
-# GwLogger #
+# GwLogger 
 GwLogger aspires to be a flexible, no-hassle logger for NodeJS which logs to file and console/stdout, and supports rolling logs and/or compressed archives. It has zero dependencies.
 
 GwLogger requires Node.js, version 10.0 or greater.
 
-## Feature Releases ##
+## Recent Release Updates
 |Release   |Date| Summary  |
 | ------------ | -- | ------------ |
-| 1.0.0 | 2020-08-09 | Initial Release |
-| 1.1.0 | 2020-09-21 | Added rolling logs (by size) and multiple profile support |
-| 1.2.0 | 2020-10-01 | Added rolling logs (at startup) |
-| 1.3.0 | 2020-11-25 | Added isColor for console/stdout logging. Added setSepCharFile and setSepCharConsole to aid the importing of logfiles into databases. Added isRollAsArchive to save compressed logfiles at the end of the rolling logs pipeline.|
 | 1.4.0 | 2020-11-29 | Added ability to specify archiveLogPath separately from rolledLogPath.  Made changes so that no error occurs if rolledLogPath and/or archiveLogPath is not defined (archiveLogPath would use rolledLogPath, and rolledLogPath would use the logfile\'s path. |
+| 1.5.0 | 2020-12-21 | Improved and documented error handling. Consolidated profile verifications at startup. Added support for event listeners for runtime monitoring. Added new test cases. Miscellanious code fixes.
 
-(Please see CHANGELOG.MD for more minor release/fix descriptions)
+(Please see CHANGELOG.MD for all release/fix descriptions)
 
-## Install or Update ##
+## Install or Update
 Install or update locally from your project\'s main directory into the node_modules directory via NPM:
 ```javascript
 	npm i @flylow/gwlogger
 
 ```
-## Usage ##
+## Usage
 To use, require GwLogger in source files and create your logger with: 
 
 ```javascript
@@ -34,7 +31,7 @@ Or, if your application is using ES Modules:
 	const GwLogger = gwl.GwLogger;
 	const log = new GwLogger("WARN"); // loglevel is "warn", will log to "./gwl_log.log"
 ```
-The logger above would be created at WARN level, log to file, not to console, and create the default ./gwl_log.log logfile in your current application's working directory.
+The logger above would be created at WARN level, log to file, not to console, and create the default `./gwl_log.log` logfile in your current application's working directory.
 
 You can create multiple loggers in your application (or even in one source file), all at different loglevels/settings using the same logfile or different logfiles.
 
@@ -46,8 +43,8 @@ Now that you have a logger defined, you can log something:
 **05-13T21:08:39:027 WARN: Did this warning get logged?**
 The line from your logfile shows the result. Obviously, this warning was logged on May 13th at 9:08pm, plus 39 seconds and 27 milliseconds.
 
-#### Example Use ####
-Here is a **minimal application** that uses the API to define a logger to log at both console and file at "INFO" level, will roll logfiles around 200K and keep the last five logfiles, will compress and save rolled logfiles older than those five.
+#### Example to Roll/Archive Logfiles
+Here is a **minimal application** that uses the GwLogger API to define a logger to log at both console and logfile at \"INFO\" level, will roll logfiles around 200K and keep the last five logfiles, will compress and save rolled logfiles older than those five.
 ```javascript
 	const GwLogger = require("@flylow/gwlogger").GwLogger; 
 	const log = new GwLogger("INFO", true, true);
@@ -58,7 +55,7 @@ Here is a **minimal application** that uses the API to define a logger to log at
 	log.info("Wait, is that all there is to it?");
 	
 ```
-To run, create an app directory and copy the above code into it with any file name, say example1.js. Then, from a terminal window navigate to that app directory and install GwLogger as a module:
+To run, create an app directory and copy the above code into it with any file name, say example1.js. Then, from a terminal window navigate to that app directory and install GwLogger as a Node module:
 `npm i @flylow/gwlogger`
 Then you can run the example:
 `node example1.js`
@@ -81,19 +78,19 @@ A different path for rolling logs can be defined this way:
 	log.setRollingLogPath("./logfiles/rollingLogs");
 ```
 
-### Constructors ###
-There are currently two constructors, the first if you choose not to create a JSON profile or to override parts of that profile (or environment variables), and a second that loads a JSON file of your choice. You can further modify settings in either case with the API.
+### Constructors
+There are currently two constructors, the first allows you to specify any or none of four main parameters and let the all the others default. The second constructor loads a JSON profile of your choice. You can further modify settings in either case with the API.
 
-#### GwLogger(loglevel, isConsole, isFile, fileName) ####
+#### GwLogger(loglevel, isConsole, isFile, fileName)
 Where:
 * loglevel is a case-insensitive string, one of: off, fatal, error, notice, info, dev, debug, trace, or all. The default is off;
-* isConsole is a boolean and indicates logging should be displayed on console (sent to stdout). The default is false;
-* isFile is a boolean and indicates logging should be written to a logfile. If false, no file will be created or appended unless later set to true. the default is true;
-* fileName is a string and is the name of a logging path and logfile. If it does not exist it will be created. The path can be relative (based on the current working directory) or absolute. If the directory does not exist, an error will be thrown. The default is "./gwl_log.log\".
+* isConsole is a boolean and indicates logging should be displayed on console (sent to stdout). The default is false. Logging can be to both console and logfile;
+* isFile is a boolean and indicates logging should be written to a logfile. If false, no file will be created or appended unless later set to true. The default is true. Logging can be to both console and logfile;
+* fileName is a string and is the name of a logging path and logfile. If it does not exist it will be created. The path can be relative (based on the current working directory) or absolute. If the directory does not exist, an error will be thrown. The default is `./gwl_log.log`
 
 Sample Uses:
 ```javascript
-	// use built-in defaults:
+	// use built-in defaults (or environment variables or GwLogger.json profile, if found)
 	const log = new GwLogger();
 	// log at INFO level to console, turn off logging to file:
 	const log = new GwLogger("info", true, false);
@@ -104,7 +101,7 @@ Sample Uses:
 `let log = new GwLogger("DEBUG", true, false);`  creates a logger at debug level, and adds logging-to-console, but turns off logging to file. The following statment in your source:`log.debug("Did this debug detail get logged?");` would result in an item like this on the console:
 **DEBUG: Did this debug detail get logged?**
 
-By built-in default, logging is to a file named "./gwl_log.log" in your apps current  working directory. This generally means the directory where myapp.js lives when you type \'node myapp.js\'. There are several ways to specify a different location/name for the logfile, such as using a profile file, an environment variable, or specifying the path when creating a new logger. 
+By built-in default, logging is to a file named `./gwl_log.log` in your apps current  working directory. This generally means the directory where myapp.js lives when you type \'node myapp.js\'. There are several ways to specify a different location/name for the logfile, such as using a profile file, an environment variable, or specifying the path when creating a new logger. 
 
 Here are a couple of other examples of logger initialization, the first of which logs to both console and file at the "info" log level:
 
@@ -122,20 +119,29 @@ The above is about all you\'ll usually need for many NodeJS projects.
 Some settings can only be specified at runtime via the API. For instance, the module\'s name (or other short descriptor) can be added near the beginning of each logged statement by adding this in your source code: `log.setModule("myMain");` Timestamps can be added to console output (they always appear in logfiles) by using: `log.setIsConsoleTs(true);` Those two statements would result in:
 **05-13T21:08:39:027 DEBUG myMain: Did this debug detail get logged?**
 
-#### GwLogger(profile_object) ####
-In this constructor, profile_object contains an attribute profileFn with string value pointing to a file to use for this logger\'s JSON profile. Profiles are described in the next section. If specified, this profile would override an optional GwLogger.json profile (but does not override environment variables).
+#### GwLogger(profile_object)
+In this constructor, profile_object contains an attribute profileFn with string value pointing to a file to use for this logger\'s JSON profile. Profiles are described in the next section. If specified, this profile would override the optional GwLogger.json global profile (but does not override environment variables).
 
 Sample use:
 ```javascript
-	const log = new GwLogger({profileFn: "./profiles/myprofile.json"}});
+	const log = new GwLogger({profileFn: "./profiles/myprofile.json"});
 ```
 
 ## Profile or Environment Variables
-A common way to specify the logfile name and other logging parameters is to create a logging profile -- a small json file, which can be shared by all loggers by default. Or, a unique json file can be used as described in the second constructor just above.
+A common way to specify the logfile name and other logging parameters is to create a global logging profile -- a small JSON file, which would be shared by all loggers by default. Or, a unique JSON file can be used as described in the second constructor just above. The other common way is to define environmental variables. GwLogger supports both of those methods. 
 
-By default at startup, each instance of GwLogger checks for environment variables (described later), but if none are found looks in the same directory as the initiating application for an optional JSON profile. This general profile, if used must be named \"GwLogger.json\". Any specified setting in the file will override the built-in default setting for that attribute, but only the attributes shown in the example below will be recognized. This example also documents the built-in defaults if no profile is specified.
+When more than one possible way of deriving the active profile of current settings might be found by GwLogger, this is the approximate order of priority:
+
+1. API statements, can override any setting, except logfile path, from any other source
+2. Constructor with settings parameters, those parameters override the same settings from other sources
+3. Environment Variables, If any environment variable(s) is found, then both types of JSON profiles would be competely ignored.
+4. Constructor with specified JSON Profile, will cause the global profile (GwLogger.json) to be ignored
+5. Global Profile (GwLogger.json), any defined setting in this file will override defaults
+6. Built-in Defaults
+
+By default at startup, each instance of GwLogger checks for environment variables (described later), but if none are found would look for one of the types of JSON profile (global or specified in constructor). The global profile, if used must be named \"GwLogger.json\" and reside in the app\'s main directory. Any specified setting in the file will override the built-in default setting for that attribute, but only the attributes shown in the example below will be recognized. This example also documents the built-in defaults if neither profile nor environment variables are used.
  
-##### Example of GwLogger.json using built-in default values, #####
+##### Example of GwLogger.json Using Built-in Default Values
 ```json
   {
 	"fn": "./gwl_log.log",
@@ -158,18 +164,18 @@ By default at startup, each instance of GwLogger checks for environment variable
 
 If found, all instances of GwLogger for your application will use the ./GwLogger.json profile you created to override built-in default values, unless a different profile is specified in the constructor or environment variables are found. 
   
-If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each attribute name shown above in the json listing should be preceded by "GWL_" so that GwLogger can find them. Such as:
+If you prefer (or are required by your runtime environment) to store the profile as a group of environment variables, then each attribute name shown above in the JSON listing should be preceded by "GWL_" so that GwLogger can find them. Such as:
 ```shell
 	GWL_fn=./logfiles/mylogfile.txt
 	GWL_isConsole=true
 	GWL_nYr=4
 ```
-Note that if **any** GwLogger environment variable is discovered, then **all** json profiles and settings will be ignored.
+Note that if **any** GwLogger environment variable is discovered, then **all** JSON profiles and their settings will be ignored.
 
 You\'ll set environment variables in an [operating-system-specific](https://en.wikipedia.org/wiki/Environment_variable "operating-system-specific") way, or maybe use [dotenv](https://github.com/motdotla/dotenv "dotenv").  
 Any values that are not set by the shared GwLogger.json profile, another json file you specify in the constructor, or in the environment variables will be initialy set according to the built-in defaults.
 
-To write to a different log file than the built-in defaults, the environment variables, or the ./GwLogger.json file specify, pass a new name into a constructor as the fourth parameter, and the others will be overridden: 
+To write to a different log file than the built-in defaults, the environment variables, or the `./GwLogger.json` file specify, pass a new name into a constructor as the fourth parameter, and the others will be overridden: 
 `const log = new GwLogger("TRACE", true, true, "mylogdir/mylog.log");` 
 In any case, make certain that the directory already exists, GwLogger will create the file but not the directory.
 
@@ -189,7 +195,7 @@ A note about GwLogger log levels: The default is OFF, but log levels can be spec
 
 Log levels are used in two ways: To set the current logging level and in logging statements. All the above except OFF and ALL may be used in logging statements, but lower-case only.
 
-### Timestamp formats #####
+### Timestamp Formats
 Timestamp formats are based on ISO-8601, although that can be tweaked with the profile or environment variables, and at runtime. For instance, you can specify the number of year digits, whether to include milliseconds, or local vs. UTC time.
 
 Besides ISO-8601, you can specify to show timestamps in only milliseconds since 1/1/1970 UTC (aka the Unix Epoch).
@@ -205,7 +211,7 @@ Most timestamp formating is done using the API (described later), but these four
 ```
 isEpoch switches the format to simple milliseconds (MS, the Unix Epoch), nYr is number of digits for year to use in timestamps, isLocalTz switches between UTC and local time, and isShowMs turns on/off the display of MS when logging to console. Timestamps always appear in logfiles.
 
-## Rolling Logs and Archives ##
+## Rolling Logs and Archives 
 
 Rolling logs help you manage your old logfiles. GwLogger supports rolling by saving the n most recent logfiles by size and/or at every application startup. After n logfiles have been rolled, the oldest is deleted to make room for the newest. GwLogger can, instead, compress and archive every logfile. Finally, it can roll n logfiles as human-readable, then compress and archive the oldest rather than deleting it. This last situation allows easy access and maintenance, while still saving disk space for storage.
 
@@ -235,7 +241,7 @@ Note that the rollingLogPath, as mentioned earlier, must point to a directory th
 The three parameters are usually defined either in your JSON profile or the environment variables prior to starting your application. You can use both roll-by-size and roll-at-startup together.
 <a name="cheatRollAtStart"></a>
 
-##### Rolling Logs at Startup via the API
+##### Rolling Logs at Startup Via the API
 Although this feature is probably best set either by an environment variable or by a json profile, it is possible to enable it via the API. If, at startup, logLevel is set to OFF or the isFile parameter is set to false, rolling will be delayed until those parameters are changed via the API and logging to file actually commences. For instance:
 
 ```javascript
@@ -246,7 +252,7 @@ Although this feature is probably best set either by an environment variable or 
 	logger.setLogLevel("debug"); // This change will cause logfile to roll.
 
 ```
-However, if you have multiple source files writing to the same logfile, you\'ll have to good at predicting which one Node will start first, which can be difficult. That\'s why it is better to use a profile for roll at startup.
+However, if you have multiple source files writing to the same logfile, you\'ll have to include the same code in each source file or be good at predicting which one Node will start first, which can be difficult.
 <a name="archives"></a>
 
 #### Archives 
@@ -332,7 +338,7 @@ The API contains a list of public methods for each logger accessed as in the ear
 |getMaxNumRollingLogs(); |Returns a number |
 |*setMaxLogSizeKb(k);|How large the logfile can become before GwLogger attempts to roll it. k must be an integer representing kilobytes. So, if setMaxLogSizeKb(2000), then GwLogger will start the rolling process when the logfile size is 2MB. Environment variable: \"GWL_maxLogSizeKb=\"\<boolean>|
 |getMaxLogSizeKb(); |Returns a number |
-|*setIsRollBySize(b); |If b=true, will attempt to turn on rolling logs. Must be the last setting for roll files, because other roll setting changes via the API will automatically set this to false. Environment variable: \"GWL_isRollBySize=\"\<boolean>|
+|*setIsRollBySize(b); |If b=true, will attempt to turn on rolling logs. Environment variable: \"GWL_isRollBySize=\"\<boolean>|
 |getIsRollBySize(); |Return boolean true/false. |
 |*setIsRollAtStartup(b); |  This variable is best set either by an environment variable ("GWL_isRollAtStartup=\"\<boolean>) or in the json profile. However, if a GwLogger is created at OFF level and/or with isFile=false (so that logging-to-file is not enabled), then setIsRollAtStartup can be set via the API. See the section "[Rolling Logs at Startup](#cheatRollAtStart "Rolling Logs at Startup")".  |
 |getIsRollAtStartup(); |Return boolean true/false. |
@@ -341,16 +347,134 @@ The API contains a list of public methods for each logger accessed as in the ear
 |*setArchiveLogPath(path); | Defines the directory where archived logs should be saved. The default is null, but if not specified will use the rolledLogPath directory. When specified, the directory must exist. Environment variable: \"GWL_archiveLogPath=\"\<string> |
 |getArchiveLogPath(); |Return a string with path. |
 
+| Event Listener Subset  | Description and Default Value |
+| -----------| ------------ |
+|on(\<\"error\" \|\| \"warn\" \|\| \"buffer\">, \<listener> ) | Adds your event listener for this event type to the logger.  |
+|once(\<\"error\" \|\| \"warn\" \|\| \"buffer\">, \<listener> ) |Adds your event listener for this event type to the logger, and removes it after the first such event is emitted. |
+|off(\<\"error\" \|\| \"warn\" \|\| \"buffer\">, \<listener> ) |Removes your event listener from this event type |
+|listeners(\<\"error\" \|\| \"warn\" \|\| \"buffer\">) | Returns a list of listeners for the event type |
+|listenerCount(\<\"error\" \|\| \"warn\" \|\| \"buffer\">) | Returns the number of listeners for the event type |
+
 Of course, most log levels (except off and all) are API methods and also part of the API: fatal, error, warn, notice, dev, debug, and trace. They must be lower-case and use the form:
 log.`<level>`(`<data to log>`). You may also comma-separate data items:
 `log.dev("Value of object vehicle is: ", vehicle);`
 
-### GwLogger Developer and Tester Notes ###
+<a name="msgHandling"></a>
+### Error Handling and Events in GwLogger
+Although hopefully rare, GwLogger can throw errors, generally during one of three different activities:
+1. Startup/instantiation, due to a configuration issue. A common cause of errors
+2. While rolling or Archiving logfiles
+3. During normal logging
+
+For the first case, say one of your teammates made an error in a profile definition, pointing to a non-existent directory or just left a typo. We can do them a favor and prevent the app from crashing by catching config issues (message code #221) and then keep going with plan \'B\' inside a try/catch statement.
+
+```javascript
+let log;
+try {
+	log = new GwLogger({profileFn: "./profiles/planA.json"}})
+} catch(err) {
+	if (!err.gwMsgCode || err.gwMsgCode !== 221) throw err; // Something unexpected...
+	log = new GwLogger("DEBUG", false, true, "./errlogs/planB.log");
+	log.warn("Something went wrong, now using plan 'B' logger!! The error cause was: ", err)
+}
+```
+A detailed description of the problem is given in the error object. For problems other than startup logger config, GwLogger (since v1.5.0) uses event emitters to signal errors and other condition changes. So, once you have a logger created, you can define listeners to monitor events. There are three message types; error, warn, and buffer:
+```javascript
+const handler = (gwMsgCode, message, obj) => {console.log(gwMsgCode, message, obj); }
+log.on("error", handler);
+log.on("warn", handler);
+log.on("buffer", handler);
+```
+GwLogger-thrown error objects and GwLogger events contain a message ID with attribute name gwMsgCode.
+
+Each event type also has a human-friendly message, and error events have an ordinary error object with stackTrace. Warn events often, but not always, have a stackTrace. You can use the [table](#msgHandling "table") to see which messages have a stackTrace object, as well as a list of message codes.
+
+Error events are similar to thrown errors, if your app doesn\'t listen and handle them, the process will exit abruptly.
+
+Many times, a warning will preceed the error event with valuable information about the initial cause of an upcoming error. Warnings also let you know if a major feature was halted. Say, rolling/archiving, or even all logging to a logfile. If an error object is present in the warning, it will point to the cause, or at least the detailed location of the error.
+
+```javascript
+const warnHandler = (gwMsgCode, message, obj) => {
+	If (gwMsgCode >= 3220 && gwMsgCode < 3230) {
+		// logging to file was turned-off (isFile set to false) by GwLogger
+	} else if (gwMsgCode >=3240 && gwMsgCode < 3250) {
+		// rolling and archiving was turned-off (isRoll* set to false) by GwLogger
+	} 
+	console.log(gwMsgCode, message, obj); 
+}
+log.on("warn", warnHandler);
+```
+
+A table of GwLogger message codes and details can be found further down in this document.
+
+### TMI
+The \"buffer\" messages are rarely needed or useful, so this section is likely *too much information,* and can be profitably skipped. These events are usually of interest only when doing extremely heavy logging in a slow-storage environment, such as a very slow network drive. GwLogger normally writes a log message to a NodeJS stream buffer, after which it is asychronously (and quite leasurely) written to the logfile by Node. Sometimes, such as when the logfiles are being rolled and the stream is closed or not yet ready, GwLogger writes the log message to an internal queue. It is held there until the stream buffer is ready to receive it.
+
+GwLogger raises a buffer event to your app when the stream's buffer is holding over 16K. Also, when the internal queue used during rolling goes over 300 logged lines (and over subsequent multiples of 300).  Finally, if the buffer catches-up, another event signals that the buffer is drained (a good thing, emptied to file, exactly the same as with NodeJS streams\' drained event). A listener for these events could look like this:
+```javascript
+log.on("buffer", (gwMsgCode, message, buffInfo) => {
+	console.log("Event: ", message, "Message Code is: ", gwMsgCode
+		,  buffInfo.buffersizeKb, buffInfo.queueLen, buffInfo.fn);
+});
+```
+All three buffer events may occur when doing normal logging, so these events are simmply status rather than a warning or error message. The buffInfo object has attributes for current buffer size in KB, the queue's length in log-lines, and the name/path of the logfile involved in the message. 
+
+Although not an event, this is a good place to mention that a logging statement always returns a bit of buffer information each time it is used while logging to file. For example:
+```javascript
+	const GwLogger = require("<path>/GwLogger.js").GwLogger;
+	const handler = (gwMsgCode, message, obj) => {console.log(gwMsgCode, message, obj); }
+    const logtest = new GwLogger("off", true, true, "./logfiles/templogger.log");
+	logtest.setIsRollAtStartup(false);
+	logtest.setIsRollBySize(false);
+	logtest.on("buffer", handler);
+	logtest.setLogLevel("info");
+    let bufferOk, n=0;
+    while (n++ < 300) {
+      bufferOk = logtest.info("Wow, logging timestamps in a loop is really fun!! n=", n,
+          ", last buff:", bufferOk, ", now is: ", Date.now());
+    }
+```
+bufferOk will be true if the logging buffer is < 16K, the same as with Node streams, but also only if GwLogger\'s internal queue isn\'t busy (during rolling). Otherwise,  bufferOk will be false to indicate Node\'s over-the-highwater-mark of 16K and/or a rapidly filling logger queue. When bufferOk is false, the program heap is rapidly growing, which could cause slow-downs during garbage collection. No error is thrown with these conditions, but there could be efficiency problems. Related note, under very intense logging, priority goes to logging into buffers (a synchronous activity), rolling will often not occur, and actual writing buffer contents to file may lag (both are async activities). 
+
+As mentioned, this info about buffers\' states and events is rarely needed, but it\'s here.
+
+### GwLogger 1.5.0 Error and Message Codes 
+A message text is created and sent for each event. That message would have other details included. Most errors and warnings have an associated stackTrace object. Buffer messages do not have stackTraces, but in their place have an object with detailed information about the buffer and internal queues.
+
+Except for thrown error #221 all the messages, so far, are related to logging to file.
+
+|  Level | Message Code  | StackTrace | Notes  |
+| ------------ | ------------ | ------------ | ------------ |
+| **error**  | 221  | Y  | Config error during GwLogger startup (**thrown error**)  |
+| **error**  | 1012  | Y  | Unknown error event raised during write to logfile  |
+| **error**  | 2001  | N  | invalid logfile directory (discovered at runtime)  |
+| warn  | 3003  | N  |  Detected that a logfile was deleted by an external process/user  |
+| warn  | 3004  | Y  |  Logfile monitor/watcher not defined or active, watcher no longer active  |
+| warn  | 3005  | Y  | Watcher unexpected error event, watcher no longer active  |
+| **error**  | 3009  | Y  |  ERROR initializing logfile  |
+| **error**  | 3010  | Y  | Unknown error event raised by writeStream  |
+| buffer  | 3101  | N  |  Stream buffer is drained/empty  |
+| buffer  | 3102  | N  |  buffer now > 16K  |
+| buffer  | 3103  | N  | queue length > 300 log lines  |
+| warn  | 3221 | Y |  ERROR creating writeStream, turning off isFile*  |
+| warn  | 3222  | Y  |  Internal queue cannot write to logfile, turning off isFile*  |
+| warn  | 3223  | Y  |  Cannot re-open logfile after rolling, turning off isFile*  |
+| warn  | 3224  | Y  |  Cannot write to logfile, turning off isFile*  |
+| warn  | 3240  | Y  |  Cannot roll logfiles or archives, turning off isRoll**  |
+| warn  | 3241  | Y  |  Cannot roll logfiles or archives, turning off isRoll**  |
+| warn  | 3242  | Y  |  Cannot move logfile, turning off isRoll** |
+
+* *isFile is set to false to turn-off logging to file, but continues to console, if it was enabled.
+* **isRollAtStartup, isRollBySize, and isRollAsArchive are all set to false.
+
+### GwLogger Developer and Tester Notes
 Test directories and files are not included in the NPM releases, but can be found on GitHub. In the test directory, see the file \"DescriptionOfTests.txt\".
 
-### Bugs or Problems ###
- If you find a bug or usability problem, please open an [issue](https://github.com/flylow/GwLogger/issues?q=is%3Aopen+is%3Aissue "issue").
+### Bugs or Problems
+ If you find a bug, error in this document, or usability problem, please open an [issue](https://github.com/flylow/GwLogger/issues?q=is%3Aopen+is%3Aissue "issue").
 
 MIT license.
 
---G. Wilson, 11/2020
+--G. Wilson, 12/2020
+
+[msgTable]: #msgTable
