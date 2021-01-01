@@ -16,5 +16,5 @@ Change Log for @flylow/GwLogger
 | 1.3.1 | 2020:11:25 | Fixed a bug using isFile/isConsole in constructor
 | 1.4.0 | 2020:11:29 | Added ability to specify archiveLogPath separately from rolledLogPath.  Made changes so that no error occurs if rolledLogPath and/or archiveLogPath is not defined (archiveLogPath would use rolledLogPath, and rolledLogPath would use the logfile\'s path. |
 | 1.5.0 | 2020:12:21 | Improved and documented error handling. Consolidated profile verifications at startup. Added support for event listeners for runtime monitoring. Added new test cases. Miscellanious code fixes.|
-| 1.5.1 | 2021:01:01 | Bug fixes for isColor management and event msgs in GwLogger.js, haltAllRolling fix in WritePool.js.
+| 1.5.1 | 2021:01:01 | Bug fixes for isColor management and event msgs in GwLogger.js, haltAllRolling fix in WritePool.js. Bugs #6 and #7.
 
