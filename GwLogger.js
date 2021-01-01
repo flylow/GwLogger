@@ -22,7 +22,7 @@ const inspect = require("util").inspect;
 const existsSync = require("fs").existsSync;
 const EventEmitter = require("events");
 
-const version = "1.5.0";
+const version = "1.5.1";
 
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
@@ -34,10 +34,10 @@ class GwLogger {
 		this.logLevelStr = undefined;
 		if (typeof param1 === "object" && param1.profileFn) {
 			if (!existsSync(param1.profileFn)) { // Does profile exist?	
-				let errorList = [msg.errNoJson01(param1.profileFn)];			
+				let errorList = [msgs.errNoJson01(param1.profileFn)];			
 				throw {location: "GwLogger.constructor"
 				, gwErrCode: 221
-				, message: msg.errConfig
+				, message: msgs.errConfig
 				, errorList: errorList};				
 			} else {
 				isConsole = undefined;
@@ -420,10 +420,13 @@ class GwLogger {
 			}			
 		}		
 		if (this.isFile) {
-			if (isColor) { // if true use different formatting than console
-				if (Array.isArray(msg)) 
-						t = this.formatArgs(msg, !isColor);
-				else t = msg;
+			if (isColor || !this.isConsole) { // if isColor, use different formatting than console
+				if (Array.isArray(msg)) {
+						t = this.formatArgs(msg, false); // set isColor to false here
+				}
+				else {
+					t = msg;
+				}
 			}
 			let txt = this.moduleName 
 				? timestamp + this.sepCharFile + logLevelStr + this.sepCharFile 
@@ -499,7 +502,7 @@ class GwLogger {
 } // end of class GwLogger
 
 
-const msg = {
+const msgs = {
 	errConfig: "ERROR: Configuration error during GwLogger startup. See errorList for details.",	
 	errNoJson01: (s1) =>  {return `ERROR: JSON profile ${s1} not found`;},
 	errWrite03: (s1) =>  {return `ERROR: Unknown error while writing to logfile, fn is: ${s1}\n`;}
