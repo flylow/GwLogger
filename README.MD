@@ -3,13 +3,7 @@ GwLogger aspires to be a flexible, no-hassle logger for NodeJS which logs to fil
 
 GwLogger requires Node.js, version 10.0 or greater.
 
-## Recent Release Updates
-|Release   |Date| Summary  |
-| ------------ | -- | ------------ |
-| 1.4.0 | 2020-11-29 | Added ability to specify archiveLogPath separately from rolledLogPath.  Made changes so that no error occurs if rolledLogPath and/or archiveLogPath is not defined (archiveLogPath would use rolledLogPath, and rolledLogPath would use the logfile\'s path. |
-| 1.5.0 | 2020-12-21 | Improved and documented error handling. Consolidated profile verifications at startup. Added support for event listeners for runtime monitoring. Added new test cases. Miscellanious code fixes.
-
-(Please see CHANGELOG.MD for all release/fix descriptions)
+Please see CHANGELOG.MD for release and fix descriptions.
 
 ## Install or Update
 Install or update locally from your project\'s main directory into the node_modules directory via NPM:
@@ -44,7 +38,7 @@ Now that you have a logger defined, you can log something:
 The line from your logfile shows the result. Obviously, this warning was logged on May 13th at 9:08pm, plus 39 seconds and 27 milliseconds.
 
 #### Example to Roll/Archive Logfiles
-Here is a **minimal application** that uses the GwLogger API to define a logger to log at both console and logfile at \"INFO\" level, will roll logfiles around 200K and keep the last five logfiles, will compress and save rolled logfiles older than those five.
+Here is a **minimal application** that uses the GwLogger API to define a logger to log at both console and logfile at \"INFO\" level, will roll logfiles around 200K and keep the last five logfiles, will compress and save rolled logfiles older than those five. We could do the same thing using a JSON profile or environmental variables.
 ```javascript
 	const GwLogger = require("@flylow/gwlogger").GwLogger; 
 	const log = new GwLogger("INFO", true, true);
@@ -416,7 +410,7 @@ log.on("buffer", (gwMsgCode, message, buffInfo) => {
 		,  buffInfo.buffersizeKb, buffInfo.queueLen, buffInfo.fn);
 });
 ```
-All three buffer events may occur when doing normal logging, so these events are simmply status rather than a warning or error message. The buffInfo object has attributes for current buffer size in KB, the queue's length in log-lines, and the name/path of the logfile involved in the message. 
+All three buffer events may occur when doing normal logging, so these events are simply status rather than a warning or error message. The buffInfo object has attributes for current buffer size in KB, the queue's length in log-lines, and the name/path of the logfile involved in the message. 
 
 Although not an event, this is a good place to mention that a logging statement always returns a bit of buffer information each time it is used while logging to file. For example:
 ```javascript

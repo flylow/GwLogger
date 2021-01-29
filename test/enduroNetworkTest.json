@@ -12,6 +12,6 @@
 	"isRollAtStartup": true,
 	"isRollBySize": true,
 	"maxLogSizeKb": 200, 
-	"maxNumRollingLogs": 5, 
+	"maxNumRollingLogs": 20, 
 	"rollingLogPath": "\\\\Epsonb87c8a\\memorycard\\sharedStuff\\logfiles\\rolledLogs"
 }

@@ -1,15 +1,18 @@
 "use strict";
 /** 
- * GwLogger : A simple-to-use Node.js logger that streams to file and/or console. 
+ * @overview  
+ * GwLogger is a simple-to-use Node.js logger that streams to file and/or console.  
  * There are no dev dependencies for GwLogger, but if you are modifying
- * GwLogger and use Eslint please use the included eslintrc.json profile.
+ * GwLogger's code and use Eslint please use the included eslintrc.json profile.
+ * The documented public API is 100% contained in GwLogger.js. 
  *
- * For more information, see README.MD and CHANGELOG.MD at 
- * https://github.com/flylow/GwLogger Test info is in the test 
- * directory's file: DescriptionsOfTests.txt
+ * For more information, see README.MD and CHANGELOG.MD at the
+ *  <a href="https://github.com/flylow/GwLogger">github repository.</a>
+ *  Test info is in the test directory's DescriptionsOfTests.txt.
  *
- * MIT license.
- * --G. Wilson, 11/2020
+ * @version 1.5.2
+ * @license MIT.
+ * @author G. Wilson, 11/2020
  */
  
 // A directive for exceptions to ESLint no-init rule 
@@ -17,13 +20,27 @@
 
 const writePool = require("./WritePool.js");
 const { ProfileClass } = require("./Profiles"); 
-const getTimeStamp = require("./timestamps.js").getTimeStamp;
+// TODO REMOVEconst getTimeStamp = require("./timestamps.js").getTimeStamp;
+const timestamps = new (require("./Timestamps.js").Timestamps);
+const getTimeStamp = timestamps.getTimeStamp;
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 const EventEmitter = require("events");
 
-const version = "1.5.1";
+const version = "1.5.2";
 
+/**
+ * @desc Creates the logger instance.
+ * @class 
+ * @param {(string|object)} param1 - Optional, either a loglevel string 
+ * ("OFF", "FATAL", "ERROR", "NOTICE", "INFO", "DEV", "DEBUG", "TRACE", 
+ * or "ALL") or an object that points to a JSON file containing a profile. 
+ * @param {string} param1.profileFn - If param1 is an object, this attribute 
+ * is required. A relative or absolute path pointing to a JSON profile.
+ * @param {boolean} isConsole - Optional, set to true for output to stdout.
+ * @param {boolean} isFile - Optional, set to true for output to a logfile.
+ * @param {string} fn - Optional, A relative or absolute path to the logfile.
+ */
 class GwLogger {
 	constructor(param1, isConsole, isFile, fn) {
 		this.eventEmitter = new EventEmitter();
@@ -93,107 +110,157 @@ class GwLogger {
 			this.ensureWriteStream();
 		}
 
-		// GwLogger listener: a serious issue required shutting off logging.
+		// GwLogger listener: a serious issue has required shutting off logging to file.
 		this.eventEmitter.on("GwLoggerSystemMsgx42021", (gwMsgCode) => {
 			if (gwMsgCode > 3220 && gwMsgCode < 3225) {
 				this.setIsFile(false); // turn-off logging to file for this logger
 			}
 		});
-	} // end of constructor.
+		// GwLogger listener: a serious issue required shutting off all rolling.
+		this.eventEmitter.on("GwLoggerSystemMsgx42021", (gwMsgCode) => {
+			if (gwMsgCode === 3242) {
+				this.setRollBySize(false);
+				this.setRollAtStartup(false);
+				this.setRollAsArchive(false);
+			}
+		});		
+	} // end of constructor 
 
 	
-	// Test Instrumentation
+	/** Test Instrumentation 
+	*	@private 
+	*	@returns {object} A profile instance.
+	*/
 	getProfilesInstance() {
 		return this.profile;
 	}
 	
 	// EventEmitter facade
+	/** @param {string} eventType - One of: error, warn, or buffer.
+	*	@param {function} listener - A handler for the event.
+	*/
 	on(eventType, listener) {
 		this.eventEmitter.addListener(eventType, listener);
 	}
+	
+	/** @param {string} eventType - One of: error, warn, or buffer. 
+	*	@param {function} listener - A handler for the event.
+	*/	
 	once(eventType, listener) {
 		this.eventEmitter.once(eventType, listener);
 	}
+	
+	/** @param {string} eventType - One of: error, warn, or buffer. 
+	*	@param {function} listener - A handler for the event.
+	*/	
 	off(eventType, listener) {
 		this.eventEmitter.removeListener(eventType, listener);
 	}
+	
+	/** @param {string} eventType - One of: error, warn, or buffer. */
 	listeners(eventType) {
 		return this.eventEmitter.listeners(eventType);
 	}
+	
+	/** @param {string} eventType - One of: error, warn, or buffer. */
 	listenerCount(eventType) {
 		return this.eventEmitter.listenerCount(eventType);
 	}
 	
-	
+	/**
+	* @param {string} mn - Module name or short descriptor.
+	*/
 	setModuleName(mn) {		
 		this.moduleName = mn.trim();
 	}	
+	/** @returns {string}*/
 	getModuleName() {
 		return this.moduleName;
 	}
 	
+	/** @returns {string} Current version of GwLogger module. */
 	getVersion() {
 		return GwLogger.getVersion();
 	}
 	
+	/** @returns {string} Current version of GwLogger module. */
 	static getVersion() { 
 		return version;
 	}
 	
+	/** @private
+	 * @returns {object} Current profile settings. 
+	*/
 	getActiveProfile() {
 		return this.profile.getActiveProfile();
 	}
 
+	/** @param {boolean} b - true to use millisecond timestamps. */
 	setIsEpoch(b) {
 		this.timeStampFormat.isEpoch = b;
 	}	
+	/** @returns {boolean} */
 	getIsEpoch() {
 		return this.timeStampFormat.isEpoch;
 	}
 	
+	/** @param {boolean} b - true to use local timezone, false sets UTC. */ 
 	setIsLocalTz(b) {
 		this.timeStampFormat.isLocalTz = b;
 	}
+	/** @returns {boolean} */
 	getIsLocalTz() {
 		return this.timeStampFormat.isLocalTz;
 	}
 
+	/** @param {integer} n - how many digits to use logging the year, must be in range 0 to 4. */
 	setYearDigits(n) {
 		if (n >= 0 && n <= 4) {
 			this.timeStampFormat.nYr = n;
 		}
 	}
+	/** @returns {integer} */
 	getYearDigits() {
 		return this.timeStampFormat.nYr;
 	}
 	
+	/** @param {boolean} b - true to include MS in timestamp. */
 	setIsShowMs(b) {
 		this.timeStampFormat.isShowMs = b;
-	}	
+	}
+	/** @returns {boolean} */	
 	getIsShowMs() {
 		return this.timeStampFormat.isShowMs;
 	}	
 	
+	/** @param {boolean} b - true to add timestamps to console/stdout logging. */
 	setIsConsoleTs(b) {
 		this.isConsoleTs = b;
 	}	
+	/** @returns {boolean} */
 	getIsConsoleTs() {
 		return this.isConsoleTs;
 	}
 	
+	/** @param {string} charStr - String separating parts of logfile statements. */
 	setSepCharFile(charStr) {
 		this.sepCharFile = charStr;
 	}
+	/** @returns {string} */
 	getSepCharFile() {
 		return this.sepCharFile;
-	}	
+	}
+
+	/** @param {string} charStr - String separating parts of console statements. */
 	setSepCharConsole(charStr) {
 		this.sepCharConsole = charStr;
 	}	
+	/** @returns {string} */
 	getSepCharConsole() {
 		return this.sepCharConsole;
 	}
 	
+	/** @param {boolean} b - true to log with color to console. */
 	setIsColor(b) {
 		this.isColor = b;
 		if (b) {
@@ -205,21 +272,25 @@ class GwLogger {
 			yellow = "";
 			green = "";
 		}
-	}	
+	}
+	/** @returns {string} */	
 	getIsColor() {
 		return this.isColor;
 	}
 	
+	/** @param {integer} dn - depth level for logging object contents. */
 	setDepthNum(dn) {
 		if (dn === null || typeof dn === "number") {
 			this.depthNum = dn;
 		}
 	}
+	/** @returns {integer} */
 	getDepthNum() {
 		return this.depthNum;
 	}	
 
-	setLogLevel(llStr) { // sets string and numeric
+	/** @param {string} llStr - A log level setting ("OFF", "ERROR", etc). */
+	setLogLevel(llStr) { // sets both internal string and numeric values for loglevel
 		let logLevelTmp, logLevelStr;
 		if (this.profile.isValidStr(llStr)) {
 			logLevelStr = llStr.trim().toUpperCase();
@@ -237,19 +308,23 @@ class GwLogger {
 		if (this.logLevel > 0 && this.isFile) {
 			this.ensureWriteStream();
 		}		
-	}	
-	getLogLevel() {  // returns a string
+	}
+	/** @returns {string} */
+	getLogLevel() {
 		return this.profile.getLogLevel();
 	}
 	
+	/** @param {boolean} b - true to log to stdout/console. */
 	setIsConsole(b) {
 		this.isConsole = b;
 		this.profile.setIsConsole(b);
 	}	
+	/** @returns {boolean} */
 	getIsConsole() {
 		return this.profile.getIsConsole();
 	}
 
+	/** @param {boolean} b - true to log to logfile. */
 	setIsFile(b) {
 		this.isFile = b;
 		this.profile.setIsFile(b);
@@ -257,108 +332,146 @@ class GwLogger {
 			this.ensureWriteStream();
 		}
 	}	
+	/** @returns {boolean} */
 	getIsFile() {
 		return this.profile.getIsFile();
 	}
 	
+	/** @returns {string} */
 	getFn() {
 		return this.profile.getFn();
 	}
 
+	/** @param {boolean} b - true to compress logfiles to archive directory. */
 	setIsRollAsArchive(b) {
 		if (typeof b !== "boolean") {
 			return null;
 		}	
 		return this.profile.setIsRollAsArchive(b);
-	}	
+	}
+	/** @returns {boolean} */	
 	getIsRollAsArchive() {
 		return this.profile.getIsRollAsArchive();
 	}
 	
+	/** @param {boolean} b - true to roll the logfile on startup. */
 	setIsRollAtStartup(b) {
 		if (typeof b !== "boolean") {
 			return null;
 		}	
 		return this.profile.setIsRollAtStartup(b);
-	}	
+	}
+	/** @returns {boolean} */
 	getIsRollAtStartup() {
 		return this.profile.getIsRollAtStartup();
 	}
 	
+	/** @param {boolean} b - true to roll logfiles at a certain size. */
 	setIsRollBySize(b) {
 		if (typeof b !== "boolean") {
 			return null;
 		}	
 		return this.profile.setIsRollBySize(b);
 	}
+	/** @returns {boolean} */
 	getIsRollBySize() {
 		return this.profile.getIsRollBySize();
 	}
 	
-	//can be turned off by WritePool on an error, so may differ from profile!
+	/**
+	* @desc Test instrumentation. Can be turned off by WritePool on an error, 
+	* so may differ from profile!
+	* End user would see an event generated, so doesn't need this in API.
+	* @private 
+	* @returns {boolean} 
+	*/
 	getIsRollBySizeCurrent() { 
 		return this.profile.getIsRollBySizeCurrent();
 	}
 	
-	setMaxLogSizeKb(kb) { // approx max of each logfile
+	/** @param {integer} kb - approx max of each logfile*/
+	setMaxLogSizeKb(kb) { 
 		return this.profile.setMaxLogSizeKb(kb);
 	}
+	/** @returns {integer} */
 	getMaxLogSizeKb() {
 		return this.profile.getMaxLogSizeKb();
 	}
 
-	setMaxNumRollingLogs(n) { // how many logfiles to keep
+	/** 
+	 * @desc Set maximum number of rolled-logs to save before either deleting 
+	 * them or rolling them to an archive.	
+	@param {integer} n - how many logfiles to keep. 
+	@returns {integer} Current setting after change or null if invalid.
+	*/
+	setMaxNumRollingLogs(n) {
 		return this.profile.setMaxNumRollingLogs(n);
-	}	
+	}
+	/** @returns {integer} */	
 	getMaxNumRollingLogs() {
 		return this.profile.getMaxNumRollingLogs();
 	}
 
-	setRollingLogPath(p) { // the path to store old logfiles
+	/** param {string} p - path to store old logfiles. */
+	setRollingLogPath(p) { 
 		return this.profile.setRollingLogPath(p);
-	}	
+	}
+	/** @returns {string} */	
 	getRollingLogPath() {
 		return this.profile.getRollingLogPath();
 	}
 
-	setArchiveLogPath(p) { // the path to store compressed old logfiles
+	/** param {sting} p - the path to store compressed old logfiles. */
+	setArchiveLogPath(p) {
 		return this.profile.setArchiveLogPath(p);
-	}	
+	}
+	/** @returns {string} */	
 	getArchiveLogPath() {
 		return this.profile.getArchiveLogPath();
 	}
 
+	/** @private
+		@returns {number} */
 	getWritableLengthKb() {  // Size in KB of this logfile's write buffer.
 		return writePool.getWritableLengthKb(this.ucFn);
 	}
 	
+	/** @private
+		@returns {boolean} */
 	getIsQueuing() {
 		return writePool.getIsQueuing(this.ucFn);
 	}
 	
+	/** @private
+		@returns {number} */
 	getLocalQueueLength() {
 		return writePool.getLocalQueueLength(this.ucFn);
 	}
 	
+	/** @private
+		@returns {boolean} */
 	getIsRolling() {
 		return writePool.getIsRolling(this.ucFn);
 	}
 	
+	/** @private 
+		@returns {object} Some internal state info, for debugging */
 	getStateRecord() {
-		// For internal state
 		return this.stateRecord;
 	}
-	
-	// Make sure the stream registry has a stream for us now
+	/**
+	* @desc Make sure the stream registry has a stream for us now.
+	* @private 
+	*/
 	ensureWriteStream() {
 		this.stateRecord.ensureWriteStreamTime = (new Date()).toISOString();
 		if (this.wsSource === this.wsSources.custom) {
-			this.profile.newCustomWriteStream(this.getFn());
+			this.profile.verifyCreateWriteStream(this.getFn());
 		}
 		else if (this.wsSource === this.wsSources.global) {
 			// use the default filename and common writeStream
 			this.fn = this.profile.getFn();
-			this.profile.newProfileWriteStream(this.getFn());								
+			this.profile.verifyCreateWriteStream(this.getFn());								
 		}
 		this.ucFn = this.getFn() 
 			? writePool.getUcFn(this.getFn())
@@ -371,7 +484,12 @@ class GwLogger {
 		this.stateRecord.WsTime = (new Date()).toISOString();
 		this.stateRecord.Ws_fn2 = this.getFn();
 	}		
-	
+
+	/** @private 
+	* 	@param {(array|string)} args 
+	* 	@param {boolean} isColor 
+	* 	@returns {string} 
+	*/	
 	formatArgs(args, isColor) {
 		let result = args.reduce((msg, arg) => {
 			if (Array.isArray(arg)) {
@@ -387,6 +505,13 @@ class GwLogger {
 		return result;
 	}
 	
+	/** @private 
+	* 	@param {integer} logLevelNum - numerical value for loglevel. 
+	* 	@param {string} logLevelStr - string representation for loglevel.
+	* 	@param {boolean} isColor - true if logging in color to console.
+	* 	@param {(string|array)} msg - text or array of text/objects to log. 
+	* 	@returns {boolean} false if buffer is over its high water mark. 
+	*/
 	write2log(logLevelNum, logLevelStr, isColor, msg) {
 		// bufferOk is similar to (usually the same) as stream's backpressure.
 		let bufferOk = true; 

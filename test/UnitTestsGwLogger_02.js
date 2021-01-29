@@ -7,14 +7,14 @@ const GwLogger = require("../GwLogger").GwLogger;
 const existsSync = require("fs").existsSync;
 const unlinkSync = require("fs").unlinkSync;
 const path = require("path");
-const getTimeStamp = require("../timestamps.js").getTimeStamp;
+const getTimeStamp = (new (require("../Timestamps.js").Timestamps)).getTimeStamp;
 let profiles;
 let assert;
 assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.5.1"; // version number of targeted GwLogger.
+const versionRef = "1.5.2"; // version number of targeted GwLogger.
 const tlog = new GwLogger("notice", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");
@@ -291,7 +291,7 @@ const test_customFileNameErrors = function() {
 	nTests++;
 	try {
 		let fn = "./bogus/XXdirectoryXX/myLogFile.log"; // non-existant directory
-		profiles.newCustomWriteStream(fn);	
+		profiles.verifyCreateWriteStream(fn);	
 		tlog.error("Fail TESTING: test_customFileNameErrors");
 	} catch(err) {
 		tlog.info("test_customFileNameErrors Passed!");
@@ -309,9 +309,9 @@ const test_customStreamPools = function() {
 	nTests++;
 	try {
 		let streamTlog = 
-			profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
+			profiles.verifyCreateWriteStream("./logfiles/logJsonFile.log");
 		let streamLogger 
-			= profiles.newCustomWriteStream("./logfiles/logJsonFile.log");
+			= profiles.verifyCreateWriteStream("./logfiles/logJsonFile.log");
 		assert.deepStrictEqual(streamTlog, streamLogger); 
 		tlog.info("test_customStreamPools Passed! process.cwd()=", process.cwd());
 		nPassed++;

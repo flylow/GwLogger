@@ -1,6 +1,6 @@
 "use strict";
 // A directive for exceptions to ESLint no-init rule
-/*global console, setTimeout, require */ 
+/*global console, setTimeout, process, require */ 
 
 const GwLogger = require("../GwLogger").GwLogger;
 let assert;
@@ -11,12 +11,12 @@ const fs = require("fs");
 const path = require("path");
 // -- end of require section
 
-const versionRef = "1.5.1"; // set to target version of GwLogger
+const versionRef = "1.5.2"; // set to target version of GwLogger
 const showStackTrace = true;
 
 const getRandomInt = (max) => {
   return Math.floor(Math.random() * Math.floor(max));
-}
+};
 
 const showPercentage = function(msg, percentage){
     process.stdout.clearLine();
@@ -61,8 +61,9 @@ const test_getVersion = function() {
 let loggers = [];
 const nLoggers = 3;
 for (let i=0; i<nLoggers; i++) {
-//	loggers[i] = new GwLogger({ profileFn: "./enduroLocalTest.json" });
+	//loggers[i] = new GwLogger({ profileFn: "./enduroNetworkTest.json" });
 	// Either the one-liner above, OR the following can be used here.
+	
 	loggers[i] = new GwLogger("OFF", false, true, "./logfiles/enduro.log");
 	loggers[i].setMaxLogSizeKb(500);
 	loggers[i].setMaxNumRollingLogs(5);
@@ -72,12 +73,14 @@ for (let i=0; i<nLoggers; i++) {
 	loggers[i].setArchiveLogPath("./rolledfiles/rolledfiles2");
 	loggers[i].setArchiveLogPath(null);	
 	loggers[i].setIsRollAsArchive(true);
-	loggers[i].setLogLevel("info");
+
+
 	/*
-	* // May use the two lines below either way, optional
+	* // May use the three lines below either way, optional
 	*/
 	//loggers[i].setSepCharFile("%");
-	loggers[i].setModuleName("Logger_"+i);	
+	loggers[i].setModuleName("Logger_"+i);
+	loggers[i].setLogLevel("info");
 }
 
 /*
@@ -94,7 +97,7 @@ const test_seqConfirm = function(n, iters, fn, rollingLogPath
 	const estLines25k = 160; // 160 lines, n=180, is about 25K
 	const fileLinesEst = (maxKb + 3) / 25 * estLines25k;
 	let nFilesEst = Math.floor(iters / fileLinesEst);
-	let logContents, logFn, nStr, nOld =-1, nNum=0, nStart=0, nEnd=0, nLines=0
+	let logContents, logFn, nStr, nOld =-1, nNum=0, nStart=0, nEnd=0
 	, nPrevFirstName=-1, nFirstNum=-1, failXFileSeq = false
 	, failIntraFileSeq = false;
 	tlog.info("In test_seqConfirm, estimated number of files:",nFilesEst
@@ -110,11 +113,10 @@ const test_seqConfirm = function(n, iters, fn, rollingLogPath
 			}
 			tlog.info("Start logfile #",i, logFn);
 			logContents = fs.readFileSync(logFn ,"UTF-8");
-			nStart=0, nEnd=0, nLines=0;
+			nStart=0, nEnd=0;
 			// Will compare prev pg 1stNum to current pg lastNum
 			nFirstNum = -1;
 			do {
-				nLines++;
 				nStart = logContents.indexOf(", n=", nStart);
 				nEnd = logContents.indexOf("...,", nStart+2);
 				if (nEnd > nStart+12 || nEnd < nStart) {
@@ -162,7 +164,7 @@ const test_enduro = function(n, iters) {
 	if (n < iters && test_enduro_pass) {
 		if (n % 100 === 0) showPercentage("Test: test_enduro"
 			, Math.round(n/iters*100));		
-		if (n % 1000 === 0) {		
+		if (n % 1000 === 0) {			
 			try {
 				heapInfo = v8.getHeapStatistics();
 				if (heapInfo.number_of_detached_contexts > 0) {
@@ -244,10 +246,10 @@ test_getVersion();
 nTests++;
 const nStart = 0;
 let timeStoppedMs;
-const timeStartedMs = Date.now()
+const timeStartedMs = Date.now();
 console.log("Time Started: ", timeStartedMs);
 let test_enduro_pass = true, nDelays = 0, delay = 0;
-const nIterations = 500000;
+const nIterations = 50000;
 test_enduro(nStart, nIterations);
 
 

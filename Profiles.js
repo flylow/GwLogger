@@ -1,12 +1,16 @@
 "use strict";
 
-/* Profiles.js creates and stores the profile data for a GwLogger.
+/**
+ * @overview Profiles.js creates and stores the profile data for a GwLogger.
  * It can gather data from environment variables or JSON files.
  * It contains built-in defaults, overlaying those settings with
  * the other gathered data, and stores the resulting activeProfile.
  *
  * Starting in GwLogger version 1.1.0, each instance of GwLogger has 
  * its own associated instance of Profiles.
+ *
+ * All functions herein are only used internally. Methods and objects 
+ * may change their form, function, or be removed.
  *
 */
 
@@ -17,14 +21,30 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
-const version = "1.5.1";
+const version = "1.5.2";
 
+/**
+ * @class
+ * @private
+ * @desc One instance of this class is used by a matching instance of GwLogger to
+ * store and manage profile settings.
+ * @param {string} profilePath - user-defined path to a JSON profile, or null.
+ * @param {string} loggerId - unique ID for an instance of GwLogger.
+ * @param {object} eventEmitter - EventEmitter for this logger.
+ * @param {string} logLevel - off, fatal, error, etc. 
+ * This was a Passed param from GwLogger's constructor.
+ * @param {boolean} isConsole - true to log to console. 
+ * This was a Passed param from GwLogger's constructor.
+ * @param {boolean} isFile - true to log to file. 
+ * This was a Passed param from GwLogger's constructor.
+ * @param {string} fn - name of file to log to, or null if not using logfiles. 
+ * This was a Passed param from GwLogger's constructor.
+*/
 class Profiles {
-
 	constructor(profilePath, loggerId, eventEmitter, logLevel, isConsole, isFile, fn) {
 		this.activeProfile = null;
 		this.loggerId = loggerId;
-		this.ee = eventEmitter; // EventEmitter for this logger.
+		this.ee = eventEmitter; 
 		this.passedParams = {logLevel: logLevel, isConsole: isConsole, isFile: isFile, fn: fn};
 		this.logLevelDefault = "OFF";
 		this.tsFormatDefaults = {
@@ -73,12 +93,20 @@ class Profiles {
 		
 	} // End of constructor
 	
+	/** 
+	 * @desc Test instrumentation.
+	 * @returns {string} Profiles.js version number. */
 	static getVersion() { 
 		return version;
 	}
 	
-	// For verifying a file spec that is entered by user. Returns a path, only if 
-	// path was valid and exists already, else null
+	/**
+	 * @desc For verifying a file spec that is entered by user. Returns a path, only if 
+	 * path was valid and exists already, else null.
+	 * @param {string} pathWithFn - A file name entered by user.
+	 * @returns {string} A path name. 
+	 * @private 
+	*/
 	checkPath(pathWithFn) {
 		let p, endPath;
 		// Trial and Error, since can sometimes expect '/' or '\' from Win users
@@ -88,18 +116,13 @@ class Profiles {
 		p = ( p && existsSync(p)) ? p : null;
 		return (p) ? path.resolve(p) : null;
 	}
-	
-	getStackTrace(err) { // Trims stacktrace to better point at perpetrator
-		let stack = err.stack;
-		stack = stack.split("\n").map(
-			function (statement) {
-				return statement.trim(); 
-		});
-		return stack.splice(stack[0] == "Error" 
-			? 2 
-			: 1);		
-	}
-	
+
+	/**
+	 * @desc Checks for a string type with length > 0
+	 * @param {string} str - a string candidate
+	 * @returns {boolean} true if a valid string with length > 0
+	 * @private 
+	*/
 	isValidStr(str) {
 		if (typeof str === "string" && str.length > 0) {
 		return true;
@@ -108,7 +131,13 @@ class Profiles {
 			return false;
 		}
 	}
-		
+	
+	/**
+	 * @desc Converts a string, like "true" or "false" to actual boolean. 
+	 * @param {string} str - string to convert. 
+	 * @returns {boolean} true or false, or null is not either.
+	 * @private 
+	*/
 	str2Bool(str) {
 		if (typeof str === "boolean") return str;
 		if (this.isValidStr(str)) {
@@ -119,11 +148,23 @@ class Profiles {
 		return null; // not a boolean
 	}
 
+	/**
+	 * @desc Checks string to ensure is a valid number.
+	 * @param {string} str - string to check.
+	 * @returns {boolean} true if valid number, or false.
+	 * @private 
+	*/
 	isNumber(str) {
 		return !isNaN(parseFloat(str)) && isFinite(str);
 	}
 
-	// coerce is limited to strings, booleans, and integers 
+	/**
+	 * @desc Converts a string to another type if reasonable.
+	 * coerce is limited to strings, booleans, and integers.
+	 * @param {string} str - string to convert or clean-up. 
+	 * @returns {boolean} true or false, or a trimmed string. 
+	 * @private 
+	*/
 	coerce(str) {
 		let b = this.str2Bool(str);
 		if (b !== null) return b; // return the boolean
@@ -132,6 +173,11 @@ class Profiles {
 			: str.trim(); // return a string
 	}
 
+	/**
+	 * @desc Packs the default values into one larger JSON object. 
+	 * @returns {object} A JSON profile object with defaults.
+	 * @private
+	*/
 	getDefaultProfile() {
 		let defJson = {
 				logLevelStr: this.logLevelDefault
@@ -155,6 +201,13 @@ class Profiles {
 		return defJson;
 	}
 	
+	/**
+	 * @desc Reads a JSON profile from disk and fills in missing 
+	 * values with defaults.
+	 * @returns {object} A JSON profile object, or null if no 
+	 * GwLogger.json or user-defined profile was defined/found.
+	 * @private
+	*/	
 	getJsonProfile() {
 		const defJson = this.getDefaultProfile();
 		let fileJson = null;
@@ -166,7 +219,14 @@ class Profiles {
 		fileJson = Object.assign({}, defJson, fileJson); // so use this instead
 		return fileJson;
 	}
-		
+
+	/**
+	 * @desc Reads the environment variables, and fills-in missing 
+	 * values with defaults.
+	 * @returns {object} A JSON profile object with defaults, or null
+	 * if no environment variables were defined by user.
+	 * @private
+	*/		
 	getEnvProfile() {
 		let envJson = this.getDefaultProfile();
 		let isEnvProfile = false;
@@ -187,53 +247,105 @@ class Profiles {
 			return null;	
 	}	
 
+	/**
+	 * @returns {array} An array of logLevel strings.
+	 * @private 
+	 */
 	getLogLevels() {
 		return ["OFF", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEV", "DEBUG"
 			, "TRACE", "ALL"];
 	}
 	
-	// Assumes parameter is valid
+	/**
+	 * @desc Assigns a new logLevel string to the active profile.
+	 * @param {string} logLevelStr - the new logLevel. Assume already validated.
+	 * @private 
+	 */	
 	setLogLevel(logLevelStr) {
 		this.activeProfile.logLevelStr = logLevelStr;	
 	}
 	
+	/**
+	 * @returns {string} The current logLevel. 
+	 * @private 
+	*/
 	getLogLevel() {
 		return this.activeProfile.logLevelStr;
 	}
 
+	/** 
+	 * @param {boolean} b - true to log to logfile. 
+	 * @private
+	*/
 	setIsFile(b) {
 		this.activeProfile.isFile = b;
 	}
-	
+
+	/** 
+	 * @returns {boolean} true to log to logfile. 
+	 * @private
+	*/	
 	getIsFile() {
 		return this.activeProfile.isFile;
 	}
-	
+
+	/** 
+	 * @param {boolean} b - true to log to console/stdout. 
+	 * @private
+	*/	
 	setIsConsole(b) {
 		this.activeProfile.isConsole = b;
 	}
-	
+
+	/** 
+	 * @returns {boolean} true to log to console/stdout. 
+	 * @private
+	*/	
 	getIsConsole() {
 		return this.activeProfile.isConsole;
 	}	
-	
-	setFn(path) { // assumes valid path
+
+	/** 
+	 * @desc Sets the logfile name in the profile. 
+	 * @param {string} path - A previously verified path name.  
+	 * @private
+	*/	
+	setFn(path) {
 		this.activeProfile.fn = path;
 	}
-	
+
+	/** 
+	 * @returns {string} path - The logfile path name.  
+	 * @private
+	*/	
 	getFn() {
 		return this.activeProfile.fn;
 	}
 
+	/** 
+	 * @desc Saves ucFn (used for a key to ID logfiles).
+	 * @param {string} ucFn - The logfile path upper-case sans whitespace.  
+	 * @private
+	*/
 	setUcFn(ucFn) { // assumes valid ucFn
 		//this.activeProfile.ucFn = ucFn;
 		this.ucFn = ucFn;
 	}
-	
+
+	/** 
+	 * @desc Returns ucFn (used for a key to ID logfiles).
+	 * @return {string} ucFn - The logfile path upper-case sans whitespace.  
+	 * @private
+	*/	
 	getUcFn() {
 		return this.activeProfile.ucFn;
 	}	
 	
+	/** 
+	 * @param {string} logLevelStr - A logLevel in string form.
+	 * @returns {number} The numeric representation of the logLevelStr.
+	 * @private
+	*/	
 	Str2NumLogLevel(levelStr) {
 		let logLevelStr = levelStr.trim().toUpperCase();
 		if (!logLevelStr) return null;
@@ -242,6 +354,10 @@ class Profiles {
 		return logLevel;
 	}	
 
+	/**
+	 * @returns {object} The current active profile. 
+	 * @private 
+	*/
 	getActiveProfile() {
 		if (!this.activeProfile) {
 			return null;
@@ -250,38 +366,70 @@ class Profiles {
 			return this.activeProfile;
 		}
 	}
-	
-	newProfileWriteStream(fn) {
-		if (!fn || !(this.fnPath = this.checkPath(fn))) {
-			this.ee.emit("error", 2001, msg.errNoLog01(fn));
-		}
-		return writePool.getStream(fn, false, this.getActiveProfile());			
-	}
-	
-	newCustomWriteStream(fn) { 	
+
+	/**
+	 * @desc Verify or Create a write stream for the specified logfile.
+	 * Find an existing writeStream for file, or create a new one.
+	 * This activity can go async in WritePool, and nothing is returned here.
+	 * @param {string} fn - file path/name for logfile. 
+	 * @private 
+	*/
+	verifyCreateWriteStream(fn) { 	
 		if (!fn || !(this.fnPath = this.checkPath(fn))) {
 			this.ee.emit("error", 2001, msg.errNoLog01(fn));	
 		}
-		return writePool.getStream(fn, false, this.getActiveProfile());			
+		writePool.verifyCreateWriteStream(fn, false, this.getActiveProfile());			
 	}
 	
-	// test instrumentation
+	/**
+	 * @desc test instrumentation.
+	 * @private
+	*/
 	deleteProfileData() {
 		// are you sure? This should only be done during testing.
 		this.activeProfile = null;
 	}
 	
-	// test instrumentation
+	/**
+	 * @desc Test instrumentation.
+	 * @private
+	*/
 	getProfileData() {
 		return this.activeProfile;
 	}
 	
-	// test instrumentation
+	/**
+	 * @desc Test instrumentation.
+	 * @param {object} p - active profile. 
+	 * @private
+	*/
 	setProfileData(p) {
 		// are you sure? This should only be done during testing.
 		this.activeProfile = p;
 	}
-		
+	
+	/**
+	 * @desc Collects all determined profile values and loads them into the 
+	 * activeProfile object.
+	 * @param {string} logLevelStr
+	 * @param {boolean} isFile
+	 * @param {boolean} isConsole
+	 * @param {boolean} isColor
+	 * @param {string} fn
+	 * @param {boolean} isEpoch
+	 * @param {boolean} isLocalTz
+	 * @param {number} nYr
+	 * @param {boolean} isShowMs
+	 * @param {boolean} isConsoleTs
+	 * @param {boolean} isRollAsArchive
+	 * @param {boolean} isRollAtStartup
+	 * @param {boolean} isRollBySize
+	 * @param {number} maxLogSizeKb
+	 * @param {number} maxNumRollingLogs
+	 * @param {string} rollingLogPath
+	 * @param {string} archiveLogPath	 
+	 * @private 
+	*/
 	storeProfileData(logLevelStr, isFile, isConsole, isColor, fn, isEpoch
 			, isLocalTz, nYr
 			, isShowMs, isConsoleTs, isRollAsArchive, isRollAtStartup
@@ -303,8 +451,13 @@ class Profiles {
 		return;
 	}	
 
-	// profileCandidate is an object created from env vars, the JSON profile or 
-	// from built-in defaults.
+	/**
+	 * @desc profileCandidate is an object created from env vars, the JSON profile or 
+	 * from built-in defaults.
+	 * @param {object} profileCandidate - An object with all attribute/value 
+	 * pairs to validate and store.
+	 * @private 
+	*/
 	createActiveProfile(profileCandidate) { 
 		let nConfigError = 0;
 		let errorList = [];
@@ -470,40 +623,71 @@ class Profiles {
 		}	
 	}
 	
-	// roll at Startup settings
+	/**
+	 * @desc Set roll-at-Startup settings.
+	 * @param {boolean} b - true to roll at startup. 
+	 * @returns Current setting after change.
+	 * @private 
+	*/
 	setIsRollAtStartup(b) { 
 		this.activeProfile.isRollAtStartup = b;
 		writePool.setIsRollAtStartup(this.ucFn, b);
 		return this.activeProfile.isRollAtStartup;
-	}	
+	}
+	/**
+	 * @returns {boolean} Current setting
+	 * @private 
+	*/	
 	getIsRollAtStartup() {
 		return this.activeProfile.isRollAtStartup;
 	}	
 
-	// roll as Archive settings
+	/**
+	 * @desc Set roll last rolled file or logfile as a compressed file (archive).
+	 * @param {boolean} b - true to roll as archive. 
+	 * @returns {boolean} Current value. 
+	 * @private 
+	*/	
 	setIsRollAsArchive(b) { 	
 		this.activeProfile.isRollAsArchive = b;
 		writePool.setIsRollAsArchive(this.ucFn, b);
 		return this.activeProfile.isRollAsArchive;
-	}	
+	}
+	/**
+	 * @returns {boolean} Current setting.
+	 * @private 
+	*/
 	getIsRollAsArchive() {
 		return this.activeProfile.isRollAsArchive;
 	}
 	
-	// roll by size settings
+	// 
+	/**
+	 * @desc Set roll by size setting.
+	 * @param {boolean} b - true to roll-by-size.
+	 * @returns Current value after setting. 
+	 * @private 
+	*/	
 	setIsRollBySize(b) {
 		this.activeProfile.isRollBySize = b;
 		writePool.setIsRollBySize(this.ucFn, b);
 		return this.activeProfile.isRollBySize;
 	}
+	/**
+	 * @returns {boolean} Current profile setting. 
+	 * @private 
+	*/	
 	getIsRollBySize() {
 		return this.activeProfile.isRollBySize;
-	}	
-	getIsRollBySizeCurrent() { //can be set internally by WritePool on an error
-		return writePool.getIsRollBySize(this.ucFn);
 	}
-	
-	setMaxLogSizeKb(kb) { // approx max of each logfile
+
+	/**
+	 * @desc Set cut-off size for logfile to roll.
+	 * @param {number} kb - Size in KB.
+	 * @returns {number|null} Current setting after change, or null if error. 
+	 * @private 
+	*/	
+	setMaxLogSizeKb(kb) { // approx max of each logfile.
 		if (kb < 0) { 
 			return null;
 		}
@@ -512,22 +696,43 @@ class Profiles {
 		writePool.setMaxLogSizeKb(this.ucFn, kb);
 		return this.activeProfile.maxLogSizeKb;
 	}
+	/**
+	 * @returns {number} Current setting in KB.
+	 * @private 
+	*/	
 	getMaxLogSizeKb() {
 		return this.activeProfile.maxLogSizeKb;
 	}
 
-	setMaxNumRollingLogs(n) { // how many logfiles to keep
+	/**
+	 * @desc Set maximum number of rolled-logs to save before either deleting 
+	 * them or rolling them to an archive.
+	 * @param {number} n - How many logfiles to keep
+	 * @returns {number} Current setting after change or null if invalid.
+	 * @private 
+	*/
+	setMaxNumRollingLogs(n) {
 		if (n > 20 || n < 0) {
 			return null;
 		}
 		this.activeProfile.maxNumRollingLogs = n;
 		writePool.setMaxNumRollingLogs(this.ucFn, n);
 		return this.activeProfile.maxNumRollingLogs;
-	}	
+	}
+	/**
+	 * @returns {number} Current value.
+	 * @private 
+	*/	
 	getMaxNumRollingLogs() {
 		return this.activeProfile.maxNumRollingLogs;
 	}
 
+	/**
+	 * @desc Set path for rolled logs. 
+	 * @param {string} rollingLogPath - new path to use. 
+	 * @returns {string|boolean} Current setting or if a bad path then false.
+	 * @private 
+	*/
 	setRollingLogPath(rollingLogPath) {
 		if (rollingLogPath) {
 			rollingLogPath = rollingLogPath.trim();
@@ -540,11 +745,21 @@ class Profiles {
 		
 		writePool.setRollingLogPath(this.ucFn, rollingLogPath);
 		return this.activeProfile.rollingLogPath;
-	}	
+	}
+	/**
+	 * @returns {string} Current setting. 
+	 * @private 
+	*/	
 	getRollingLogPath() {
 		return this.activeProfile.rollingLogPath;
 	}
 
+	/**
+	 * @desc  Set path for archived logs. 
+	 * @param {string} archiveLogPath - Path to store compressed logfiles. 
+	 * @returns {string|boolean} Current setting or if bad path then false.
+	 * @private 
+	*/
 	setArchiveLogPath(archiveLogPath) {
 		if (archiveLogPath) {
 			archiveLogPath = archiveLogPath.trim();
@@ -556,7 +771,11 @@ class Profiles {
 		this.activeProfile.archiveLogPath = archiveLogPath;
 		writePool.setArchiveLogPath(this.ucFn, archiveLogPath);
 		return this.activeProfile.archiveLogPath;
-	}	
+	}
+	/** 
+	 * @returns {string} Current setting for archive log path
+	 * @private 
+	*/	
 	getArchiveLogPath() {
 		return this.activeProfile.archiveLogPath;
 	}

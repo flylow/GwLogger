@@ -19,11 +19,11 @@ if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // need to check version numbers in all source files
 const { ProfileClass } = require("../Profiles");
 const fsprom = require("../fsprom.js");
-const timestamps = require("../timestamps.js");
+const timestamps = new (require("../timestamps.js")).Timestamps;
 const writePool = require("../WritePool.js");
 // -- end of require section
 
-const versionRef = "1.5.1"; // set to target version of GwLogger	
+const versionRef = "1.5.2"; // set to target version of GwLogger	
 const tlog = new GwLogger("off", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setLogLevel("notice");

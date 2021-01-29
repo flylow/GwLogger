@@ -1,13 +1,17 @@
 "use strict";
-/**
- * WritePool manages pools of streams and logfiles, and rolls
- * logfiles when/if specified.
+/** @overview
+ * WritePool specializes in logging to logfiles, and 
+ * manages pools of streams and logfiles. It rolls
+ * and archives logfiles when/if specified.
  *
  * It helps ensure that any of the user's instances of GwLogger that log to the 
  * same logfile will write to the same writeStream rather than creating 
  * another one on a different buffer. It handles a lot of details.
  * 
+ * All functions herein are only used internally. Methods and objects 
+ * may change their form, function, or be removed.
 */
+
 // exceptions to ESLint no-init rule
 /*global module, console, setTimeout, clearTimeout, require */
 
@@ -25,24 +29,26 @@ const unlinkFile = require("./fsprom.js").unlinkFile;
 const accessFile = require("./fsprom.js").accessFile;
 const fs = require("fs");
 
-const getTimeStamp = require("./timestamps.js").getTimeStamp;
+const getTimeStamp = (new (require("./Timestamps.js").Timestamps)).getTimeStamp;
 
-const version = "1.5.1";
-
-/*
-Most buffering occurs inside the stream object, as usual for writestreams. 
-But during a roll event, a localQueue, defined below, takes over. Buffering 
-to the localQueue usually only happens for a short period while waiting for 
-the outgoing file to receive remainder of any buffer still held by an 
-ended writestream. After which, a new writestream is created and takes over.
-*/
+const version = "1.5.2";
 
 let writeStreams = {}; // contains fs.writeStream(s) and properties
 let logFiles = {}; // contains LogFileRecs
 let loggers = {}; // contains GwLogger instance registry (ID, ucFn, EventEmitter)
 let loggerCount = 0;
 
-// Holds properties and state information for a logfile
+/**
+ * @class
+ * @private
+ * @desc Defines shared properties and state information for a logfile, which 
+ * is not specific to a particular GwLogger instance.
+ * Most buffering occurs inside the stream object, as usual for writestreams. 
+ * But during a roll event, a localQueue, defined below, takes over. Buffering 
+ * to the localQueue usually only happens for a short period while waiting for 
+ * the outgoing file to receive remainder of any buffer still held by an 
+ * ended writestream. After which, a new writestream is created and takes over.
+*/
 class LogFileRec {
 	constructor (isRollBySize = false, rollingLogPath = null
 		, maxNumRollingLogs = 0, maxLogSizeKb = 0
@@ -70,7 +76,12 @@ class LogFileRec {
 	}
 }
 
-// The main class that does all the work managing files and streams.
+/** 
+ * @desc The main WritePool class, a singleton, that does all the work managing 
+ * files and file streams. 
+ * @class 
+ * @private
+*/
 class WritePool {
 	constructor () {
 		// After every nth write attempt will see if file needs rolled for size		
@@ -78,16 +89,25 @@ class WritePool {
 		this.checked = 0; // A counter adjusted after each write attempt.
 	}
 
+	/** @private
+		@desc Test instrumentation.
+		@returns {string} Version number. */
 	getVersion() {
 		return version;
 	}
 	
+	/** @private 
+		@returns {boolean} true if ucFn registered in logFiles. */
 	isLogFile(ucFn) {
 		if (logFiles && logFiles[ucFn]) return true;
 		else return false;
 	}
 	
-	getLoggerId(eventEmitter) { // return a random-but-unique logger ID
+	/** @private 
+	*	@param {object} eventEmitter - instance of EventEmitter.
+	*	@returns {string} A unique ID which has been paired to an eventEmitter.
+	*/
+	getLoggerId(eventEmitter) { // return a unique logger ID
 		if (!eventEmitter) return null; // ee is required
 		loggerCount++;
 		let loggerId = "gwl"+loggerCount;
@@ -95,8 +115,12 @@ class WritePool {
 		return loggerId;
 	}
 	
-	// ucFn is "upper-case file name" without any whitespace, and is
-	// used as a key for logfile records and streams.
+	/**
+	 * @private
+	 * @param {string} fn - A path and filename to use as logfile.
+	 * @returns upper-case file name without any whitespace, and is
+	 * used as a key for logfile records and streams.
+	*/
 	getUcFn(fn) { 
 		if (!fn) return null;
 		fn = path.resolve(fn);
@@ -104,12 +128,21 @@ class WritePool {
 	}
 	
 	//		methods for roll as Archive
-	
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.	
+	 * @param {boolean} b - true to roll logfiles to an archive.
+	*/
 	setIsRollAsArchive(ucFn, b) {
 		if (!this.isLogFile(ucFn)) return null;
 		logFiles[ucFn].isRollAsArchive = b;
 		return b;
-	}	
+	}
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {boolean} true to roll logfiles to an archieve, or null.
+	*/
 	getIsRollAsArchive(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].isRollAsArchive 
@@ -117,12 +150,21 @@ class WritePool {
 	}
 	
 	//		methods for roll at startup
-	
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.	
+	 * @param {boolean} b - true to roll logfiles upon first startup.
+	*/	
 	setIsRollAtStartup(ucFn, b) { 
 		if (!this.isLogFile(ucFn)) return null;
 		logFiles[ucFn].isRollAtStartup = b;
 		return b;
-	}	
+	}
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {boolean} true if rolling logfiles at startup, or null.
+	*/
 	getIsRollAtStartup(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].isRollAtStartup 
@@ -130,70 +172,134 @@ class WritePool {
 	}
 		
 	// 		methods for roll by size settings
-	
+
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.	
+	 * @param {boolean} b - true to roll logfiles when too large.  
+	*/		
 	setIsRollBySize(ucFn, b) {
 		if (!this.isLogFile(ucFn)) return null;
 		logFiles[ucFn].isRollBySize = b;
 		return b;
-	}	
+	}
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {boolean} true if rolling logfiles due to large size, or null.
+	*/	
 	getIsRollBySize(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].isRollBySize 
 			: null;
 	}
 	
-	setMaxLogSizeKb(ucFn, kb) { // approx max for each logfile
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {number} kb - size in KB to roll files.	
+	 * @returns {number} kb - size in KB to roll files, or null.
+	*/		
+	setMaxLogSizeKb(ucFn, kb) { // approx max for each logfile.
 		if (!this.isLogFile(ucFn)) return null;
 		logFiles[ucFn].maxLogSizeKb = kb;
 		return kb;
 	}
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {number} kb - size in KB to roll files, or null.
+	*/		
 	getMaxLogSizeKb(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].maxLogSizeKb 
 			: null;
 	}
 
-	setMaxNumRollingLogs(ucFn, n) { // how many logfiles to keep
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {number} n - how many logfiles to keep.	
+	 * @returns {number} how many logfiles to keep, or null.
+	*/	
+	setMaxNumRollingLogs(ucFn, n) { 
 		if (!this.isLogFile(ucFn)) return null;
 			logFiles[ucFn].maxNumRollingLogs = n;
 			return n;
-		}	
+		}
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {number} how many logfiles to keep, or null.
+	*/	
 	getMaxNumRollingLogs(ucFn) {
 		return (this.isLogFile(ucFn)) 
 			? logFiles[ucFn].maxNumRollingLogs 
 			: null;
 	}
 
-	// set the path to store old logfiles. Must be cleaned first by Profiles.
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {string} rollPath - directory for storing old logfiles. 
+	 * @returns {boolean|null} true if successfully stored, null if 
+	 * key wasn't found.
+	*/		
 	setRollingLogPath(ucFn, rollPath) { 
 		if (!this.isLogFile(ucFn)) return null;
 		logFiles[ucFn].rollingLogPath = rollPath;
 		return true;
-	}	
+	}
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {string} Directory for storing old logfiles, or null.
+	*/	
 	getRollingLogPath(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].rollingLogPath 
 			: null;
 	}
-	
+
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {string} archiveRollPath - directory for storing compressed logfiles. 
+	 * @returns {boolean} , or null
+	*/		
 	setArchiveLogPath(ucFn, archiveRollPath) { 
 		if (!this.isLogFile(ucFn)) return null;
 		logFiles[ucFn].archiveLogPath = archiveRollPath;
 		return true;
-	}	
+	}
+	
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {string} Directory for storing compressed logfiles, or null.
+	*/	
 	getArchiveLogPath(ucFn) {
 		return (logFiles && logFiles[ucFn]) 
 			? logFiles[ucFn].archiveRollPath 
 			: null;
 	}
 	
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {number} Size, in KB, of logfile on disk.
+	*/	
 	getCurrentFileSizeKb(ucFn) {
 		const fn = logFiles[ucFn].fn;
 		const fileStat = statSync(fn);
 		return fileStat.size / 1024;
 	}
-	
-	// Determines the size of the writeStream's buffer
+
+	/**
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {number} Size of the logfile's stream buffer, or null.
+	*/	
 	getWritableLengthKb(ucFn) {
 		if (!writeStreams || !writeStreams[ucFn] 
 			|| !writeStreams[ucFn].ws) return null;
@@ -201,7 +307,12 @@ class WritePool {
 		return Math.trunc(ws.writableLength/1024);
 	}
 	
-	// test instrumentation
+	/** 
+	 * @desc  test instrumentation.
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {boolean} true if currently writing to local queue.
+	*/	
 	getIsQueuing(ucFn) { 
 		if (!this.isLogFile(ucFn) || logFiles[ucFn].isQueuing === undefined
 			|| logFiles[ucFn].isQueuing === null) {
@@ -210,13 +321,23 @@ class WritePool {
 		return logFiles[ucFn].isQueuing;
 	}
 	
-	// test instrumentation
+	/** 
+	 * @desc  test instrumentation.
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {number} The number of logging statements held in local queue. 
+	*/	
 	getLocalQueueLength(ucFn) { 
 		if (!this.isLogFile(ucFn)) return null;
 		return logFiles[ucFn].localQueue.length;
 	}
 	
-	// test instrumentation
+	/** 
+	 * @desc  test instrumentation.
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {boolean} true if rolling now.
+	*/
 	getIsRolling(ucFn) {
 		if (!this.isLogFile(ucFn) || logFiles[ucFn].isRolling === undefined
 			|| logFiles[ucFn].isRolling === null) {
@@ -225,7 +346,12 @@ class WritePool {
 		return logFiles[ucFn].isRolling;
 	}	
 	
-	// test instrumentation
+	/** 
+	 * @desc  test instrumentation.
+	 * @private
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {fs.writeStream} writeStream for this logfile, or null.
+	*/
 	getWsStream(ucFn) {
 		let record = writeStreams[ucFn];
 		if (record && record.ws) {
@@ -235,7 +361,13 @@ class WritePool {
 		}		
 	}
 	
-	// Will add the items in nuBits to the writeStreams record
+	/** 
+	 * @desc Will add the items in nuBits to the writeStream's record.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {object} nuBits - object to add to the record for this ws.
+	 * @returns {object} - the updated record. 
+	 * @private
+	*/
 	updateRecord(ucFn, nuBits) {
 		let record;
 		record = writeStreams[ucFn];	
@@ -245,8 +377,14 @@ class WritePool {
 		return record;		
 	}
 	
-	// Returns a stream for a given logfile. 
-	// May have to create it, or replace existing ws
+	/**
+	 * @desc Returns a stream for a given logfile. 
+	 * May have to create it, or replace existing ws.
+	 * @private 
+	 * @param {string} fn - The logfile.
+	 * @param {boolean} replace - true to replace existing writeStream.
+	 * @returns {fs.writeStream} The stream for a given logfile.
+	*/
 	getRegisteredStream(fn, replace=false) {
 		let ws;
 		let record;
@@ -271,14 +409,19 @@ class WritePool {
 		return ws;		
 	}
 	
-	// Check if logfile size estimate is larger than target max set by user
-	// ws is writeStream, ucFn is upper-case-filename
+	/**
+	 * @desc Check if logfile size estimate is larger than target max set by user.
+	 * @param {object} ws - fs.writeStream.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @returns {boolean} true if logfile needs rolled, else false.
+	 * @private
+	*/
 	getNeedToRollSize(ws, ucFn) {
 		let currentSize = 0;
 		if (logFiles[ucFn] && logFiles[ucFn].isRolling) {
 			return false; // already rolling...
 		}
-		// ws may be undefined at startup, so ws buffer regarded as empty; 
+		// ws may be undefined at startup, so ws buffer regarded as empty.
 		if (ucFn && !ws) { 
 			if (logFiles[ucFn].startSizeKb  > logFiles[ucFn].maxLogSizeKb) {
 				return true;
@@ -298,6 +441,11 @@ class WritePool {
 		}
 	}	
 	
+	/**
+	 * @desc Check if specific logfile needs rolled, then start the roll.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @private
+	*/	
 	checkRollingFile(ucFn) {
 		let ws;
 		if (logFiles[ucFn]
@@ -322,14 +470,22 @@ class WritePool {
 			this.emptyLocalQueue(ucFn);
 		}		
 	}
-	// Check to see if it is time to roll	
+
+	/**
+	 * @desc Check if any logfile needs rolled, then start the roll. 
+	 * @private
+	*/	
 	checkRollingFiles() { 
 		for (let ucFn in logFiles) {
 			this.checkRollingFile(ucFn);
 		}
 	}
 	
-	// The mostly-synchronous prelude to async rollFiles
+	/**
+	 * @desc The mostly-synchronous prelude to async rollFiles.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @private
+	*/	
 	preRollFiles(ucFn) {
 		if (logFiles[ucFn].isRolling) {
 			return;
@@ -359,13 +515,19 @@ class WritePool {
 		});
 	}
 	
-	// Determine timestamp and generate a file name for an archive
-	// The name could include a timestamp from the file metadata (last modified 
-	// time).
-	//
-	// useFileTS means to try and derive timestamp from file's last modified
-	// date, otherwise will use current time (former for fresh logfile, latter
-	// for a rolled file, which could have been on drive a long time.
+	/**
+	 * @desc Determine timestamp and generate a file name for an archive.
+	 * The name should include a timestamp from the file metadata (last modified 
+	 * time).
+	 * @param {string} oldFname - The path+file we want to archive.
+	 * @param {string} path - The path to put compressed files (archives).
+	 * @param {object} fnPath - a Path object for current actual logfile.
+	 * @param {boolean} useFileTS - true to try and derive timestamp from file's 
+	 * last-modified TS, else will use current time (former for fresh logfile, 
+	 * latter for a rolled file, which could have been on drive a long time.
+	 * @returns {string} path+filename for archived file. 
+	 * @private
+*/
 	async createArchiveName(oldFname, path, fnPath, useFileTS) {
 		const timeStampFormat = {isShowMs: false, nYr: 4, sephhmmss: ""};
 		const currentTimeMs = Date.now();
@@ -390,7 +552,14 @@ class WritePool {
 		return nuFname;
 	}
 	
-	// Sends events to listeners. detailObj is stacktrace or details for msg type
+	/**
+	 * @desc Sends events to listeners. Sends to all loggers using the logfile.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {string} typeMsg - type of message to send (error, warn, or buffer).
+	 * @param {number} msgCode - msgCode (codes are documented in README.MD).
+	 * @param {object} detailObj - A stacktrace or details for msg type.
+	 * @private
+	*/
 	send(ucFn, typeMsg, msgCode, msgText, detailObj=null) {
 		try {
 			for (let loggerId of logFiles[ucFn].loggerIds) {
@@ -403,7 +572,14 @@ class WritePool {
 		}		
 	}
 	
-	// Perform logfile roll
+	/**
+	 * @desc Perform logfile roll.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {fs.writeStream} ws - The logfiles associated writeStream .
+	 * @param {string} fn - the logfile to roll. 
+	 * @returns {boolean} - true if a new writeStream should be generated.
+	 * @private
+	*/
 	async rollFiles(ucFn, ws, fn) {	
 		const fnPath = path.parse(fn);	
 		const maxNum = logFiles[ucFn].maxNumRollingLogs;
@@ -452,6 +628,16 @@ class WritePool {
 		return false;
 	}
 
+	/**
+	 * @desc Rename or move all the previously rolled logfiles (001 to 002, 
+	 * 002 to 003, etc). The highest number rolled file will be deleted or 
+	 * archived.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {object} fnPath - a Path object for current actual logfile.
+	 * @param {string} rollingLogPath - path where rolled logs are stored.
+	 * @param {boolean} isArchive - true if last rolled file will be archived.
+	 * @private
+	 */
 	async rollLogtrain(ucFn, fnPath, rollingLogPath, isArchive, archiveLogPath) {
 		let oldFname, nuFname;
 		const maxNum = logFiles[ucFn].maxNumRollingLogs;
@@ -489,15 +675,26 @@ class WritePool {
 			}
 		}
 	}
-	
+
+	/**
+	 * @desc After renaming all the old rolled-files up one (out of the way),
+	 * then this method renames or moves the actual current logfile to 
+	 * position 001.
+	 * @param {string} fn - logfile to roll.
+	 * @param {string} nuFname - name for rolled version of logfile.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {object} ws - the writeStream to manage during roll. 
+	 * @param {boolean} isArchive - true if last rolled file will be archived.
+	 * @private
+	 */	
 	async rollLogfile(fn, nuFname, ucFn, ws, isArchive) {
 		let typeOfMove;
 		typeOfMove = (isArchive && logFiles[ucFn].maxNumRollingLogs === 0)
 			? await moveFileZip(fn, nuFname, true)
-			: await moveFile(fn, nuFname, true);
+			: await moveFile(fn, nuFname, true);		
 		if (!typeOfMove || typeOfMove === "none") { 
 			throw("typeOfMoveIsNone"); // caught by caller (rollFiles) method
-		} else if (typeOfMove === "trunc") { // truncated fn
+		} else if (typeOfMove === "trunc") { // truncated logfile fn to 0 length
 			logFiles[ucFn].truncate = true;
 			logFiles[ucFn].startSizeKb = 0;
 			logFiles[ucFn].birthTimeMs = Date.now();					
@@ -517,7 +714,13 @@ class WritePool {
 		return typeOfMove;		
 	}
 	
-	touch(fn) { // creates a file if it didn't already exist
+	/**
+	 * @desc creates a file synchronously if it didn't already exist.
+	 * @param {string} fn - file to touch.
+	 * @returns {boolean} true if file already existed, false if not.
+	 * @private
+	*/ 
+	touch(fn) {
 		if (!existsSync(fn)) {
 			closeSync(openSync(fn, "w")); 
 			return false; // file did not previously exist
@@ -526,12 +729,23 @@ class WritePool {
 		}
 	}
 	
-	// Recursive, since we may need some extra time for the old stream to clean-up
-	// after it closed the logfile and continue, so may need a couple of retries.
-	rollNewStream(fn, retryNum=0) {
+	// Recursive, since we (rarely) may need some extra time for the old stream to clean-up
+	// after it closed the logfile, so may need a couple of retries.
+	// Used after rolling the logfile with renaming strategy 
+	// in MoveFile, since a new stream must then be created for the new logfile.
+	/**
+	 * @desc Called when an old writeStream is being replaced with a new one,
+	 * normally called by a close event on a writeStream during the rolling 
+	 * operation. It is asynchronous and recursive, usually taking none, 
+	 * but sometimes an iter-or-two to wait for old writeStream to be closed.
+	 * @param {string} fn - file needing the new stream.
+	 * @param {integer} retryNum - how many more iterations allowed to try.
+	 * @private
+	*/
+	async rollNewStream(fn, retryNum=0) {
 		const ucFn = this.getUcFn(fn);
 		// will wait for new logfile to be created before creating stream
-		if (existsSync(fn)) {
+		if (await accessFile(fn)) { //(existsSync(fn)) {
 			this.getRegisteredStream(fn, true); // replace ws in writeStreams obj
 			this.emptyLocalQueue(ucFn);
 			return;			
@@ -553,12 +767,18 @@ class WritePool {
 				}
 			}
 			// will recurse now after a setTimeout			
-			setTimeout(() => {
+			setTimeout(async () => {
 				this.rollNewStream(fn, ++retryNum);
 			}, 200);		
 		}		
 	}
-		
+	
+	/**
+	 * @desc Initializes a new logFileRec, or updates one.
+	 * @param {string} fn - logfile name. 
+	 * @param {string} ucFn - key for this logfile.
+	 * @private
+	*/
 	logFileInit(fn, ucFn) {		
 		try {
 			// get current file information
@@ -576,6 +796,11 @@ class WritePool {
 		}		
 	}
 	
+	/**
+	 * @desc Attempts to empty local logging queue to writeStream. 
+	 * @param {string} ucFn - key for a target logfile.
+	 * @private
+	*/
 	emptyLocalQueue(ucFn) {
 		if (!writeStreams[ucFn] || !writeStreams[ucFn].ws) return;
 		const ws = writeStreams[ucFn].ws;
@@ -589,12 +814,16 @@ class WritePool {
 			this.haltAllRolling(ucFn);
 			this.send(ucFn, "warn", 3222, msg.warQ01(logFiles[ucFn].localQueue.length
 				, logFiles[ucFn].fn), err);
-			return; // queue left intact in case user fixes issue with file and setIsFile(true) again.
+			return; // queue left intact in case user can fix issue with file and setIsFile(true) again.
 		}
 		logFiles[ucFn].isQueuing = false;
 	}
 	
-	// Create and init the fs writeStream for logfile fn
+	/**
+	 * @desc Create and init the fs writeStream for logfile fn.
+	 * @param {string} fn - logfile name. 
+	 * @private
+	*/
 	createCustomWriter(fn) {
 		let ws;
 		let watcher;
@@ -689,23 +918,38 @@ class WritePool {
 			}
 			return ws;
 		} catch(err) {
-			this.send(ucFn, "GwLoggerSystemMsgx42021", 3221, msg.warWpCw01(fn), err); // for affect
+			this.send(ucFn, "GwLoggerSystemMsgx42021", 3221, msg.warWpCw01(fn), err);
 			this.haltAllRolling(ucFn);
 			this.send(ucFn, "warn", 3221, msg.warWpCw01(fn), err); // for user info
 		}
 	}
 	
+	/**
+	 * @desc Quit trying to roll logs for any logger using this file.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @private
+	*/
 	haltAllRolling(ucFn) {
-		// quit trying to roll for any logger using this file
 		if (this.isLogFile[ucFn]) {
 			logFiles[ucFn].isRollBySize = false;					
 			logFiles[ucFn].isRollAtStartup = false;
 			logFiles[ucFn].isRollAsArchive = false;	
+			this.send(ucFn, "GwLoggerSystemMsgx42021", 3242, msg.warRollOld01(ucFn));
 		}		
 	}
 	
-	// Will return an existing stream for logfile, or have a new one created
-	getStream(fn, replace=false, activeProfile) {
+	/**
+	 * @desc Verifies an existing stream for logfile, or kicks-off a new one.
+	 * Normally called from Profiles.js when time comes to complete initializing a
+	 * new logger.
+	 * @param {string} fn - logfile name. 
+	 * @param {boolean} replace - true to close old stream and init new one.
+	 * @param {object} activeProfile - the current settings for initializing things.
+	 * @returns {object} A writeStream (or nothing), but only for some testing.
+	 * Program logic should never depend on getting a value back.
+	 * @private
+	*/
+	verifyCreateWriteStream(fn, replace=false, activeProfile) {
 		let ucFn = this.getUcFn(fn);
 		let fnExisted;
 		let loggerId = activeProfile.loggerId;
@@ -750,6 +994,13 @@ class WritePool {
 		}
 	}
 	
+	/**
+	 * @desc Write a log statement to the internal queue. Used when rolling. 
+	 * is in progress, or a new writeStream is being created.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {string} txt - log statement to write to queue.
+	 * @private
+	*/
 	writeToQueue(ucFn, txt) {
 		let qLen = logFiles[ucFn].localQueue.length;
 		if (qLen > 1 && qLen % 300 === 0 ) {
@@ -765,7 +1016,17 @@ class WritePool {
 		logFiles[ucFn].localQueue.push(txt);
 	}
 	
-	// Writes to the logfile's stream or localQueue
+	/**
+	 * @desc Writes to the logfile's stream or localQueue. Called from GwLogger,
+	 * and is the main entry point to log something to a logfile once formated
+	 * by GwLogger.
+	 * @param {string} loggerId - A unique logger ID for an instance of GwLogger.
+	 * @param {string} ucFn - key for a target logfile.
+	 * @param {string} txt - log statement to write to logfile.
+	 * @returns {boolean} - false if getting backpressure from stream or if we 
+	 * are currently writing to queue for any reason (usually rolling logfiles).
+	 * @private
+	*/
 	write(loggerId, ucFn, txt) {
 		try {		
 			let bufferOk = false;
