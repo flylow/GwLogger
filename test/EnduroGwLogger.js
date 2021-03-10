@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 // -- end of require section
 
-const versionRef = "1.5.2"; // set to target version of GwLogger
+const versionRef = "1.5.3"; // set to target version of GwLogger
 const showStackTrace = true;
 
 const getRandomInt = (max) => {
@@ -61,16 +61,16 @@ const test_getVersion = function() {
 let loggers = [];
 const nLoggers = 3;
 for (let i=0; i<nLoggers; i++) {
-	//loggers[i] = new GwLogger({ profileFn: "./enduroNetworkTest.json" });
+	loggers[i] = new GwLogger({ profileFn: "./enduroLocalTest.json" });
 	// Either the one-liner above, OR the following can be used here.
-	
-	loggers[i] = new GwLogger("OFF", false, true, "./logfiles/enduro.log");
-	loggers[i].setMaxLogSizeKb(500);
-	loggers[i].setMaxNumRollingLogs(5);
-	loggers[i].setRollingLogPath("./rolledfiles");
+/*
+	loggers[i] = new GwLogger("OFF", false, true, "./rolledfiles/enduro.log");
+*/	
+	loggers[i].setMaxLogSizeKb(100);
+	loggers[i].setMaxNumRollingLogs(3);
+	//loggers[i].setRollingLogPath("./rolledfiles");
 	loggers[i].setIsRollBySize(true);
 	loggers[i].setIsRollAtStartup(true);
-	loggers[i].setArchiveLogPath("./rolledfiles/rolledfiles2");
 	loggers[i].setArchiveLogPath(null);	
 	loggers[i].setIsRollAsArchive(true);
 

@@ -1,7 +1,7 @@
 Change Log for @flylow/GwLogger
 (Dates are YYYY:MM:DD)
 
-## Feature Releases ##
+## Features and Fixes Releases ##
 |Release   |Date| Summary  |
 | ------------ | -- | ------------ |
 | 1.0	| 2020:08:04 | Initial Release |
@@ -18,4 +18,5 @@ Change Log for @flylow/GwLogger
 | 1.5.0 | 2020:12:21 | Improved and documented error handling. Consolidated profile verifications at startup. Added support for event listeners for runtime monitoring. Added new test cases. Miscellanious code fixes.|
 | 1.5.1 | 2021:01:01 | Bug fixes for isColor management and event msgs in GwLogger.js, haltAllRolling fix in WritePool.js. Bugs #6 and #7. |
 | 1.5.2 | 2021:01:29 | Small code improvements, and JSDoc additions. |
+| 1.5.3 | 2021:03:10 | Fix for issue #8,[Timestamp on archive should follow original logfile](https://github.com/flylow/GwLogger/issues/8#issue-823236730). Also, refactored rollfiles functionality into its own class file.
 

@@ -21,7 +21,13 @@ const renameProm = promisify(fs.rename);
 const unlinkProm = promisify(fs.unlink);
 const truncProm = promisify(fs.truncate);
 const accessProm = promisify(fs.access);
-const version = "1.5.2";
+const openProm = promisify(fs.open);
+const closeProm = promisify(fs.close);
+const utimesProm = promisify(fs.utimes);
+const closeSync = require("fs").closeSync;
+const openSync = require("fs").openSync;
+const existsSync = require("fs").existsSync;
+const version = "1.5.3";
 
 /** 
  * @returns {string} Current version 
@@ -45,6 +51,37 @@ const accessFile = async function(path, mode=fs.constants.W_OK) {
 		return true;
 	} catch(err) {
 		return false;
+	}
+};
+
+/**
+ * @desc Creates a file, asynchronously, if it didn't already exist.
+ * However, it does not change last modification timestamps for existing files.
+ * @param {string} fn - file to touch.
+ * @returns {boolean} true if file already existed, false if not.
+ * @private
+*/ 
+const touchFile = async function(fn) {
+	if (!await accessFile(fn)) {
+		await closeProm(await openProm(fn, "w")); 
+		return false; // file did not previously exist
+	} else {
+		return true; // file did already exist
+	}
+};
+
+	/**
+	 * @desc Synchronous version of touchFile. 
+	 * @param {string} fn - file to touch.
+	 * @returns {boolean} true if file already existed, false if not.
+	 * @private
+	*/ 
+const touchFileSync = function(fn) {
+	if (!existsSync(fn)) {
+		closeSync(openSync(fn, "w")); 
+		return false; // file did not previously exist
+	} else {
+		return true; // file did already exist
 	}
 };
 
@@ -111,7 +148,7 @@ const unlinkFile = async function(path) {
 /**
  * @desc Moves a file, compressing it along the way.
  * @param {string} path - file to move and zip.
- * @param {string} path - new file spec.
+ * @param {string} newPath - new file spec.
  * @param {boolean} isTrunc - true to truncate. 
  * rather than delete. Will always be true with primary logfile.
  * @param {string} flags - used by fs.createWriteStream during piping operation, 
@@ -207,8 +244,13 @@ const msg = {
 
 exports.moveFile = moveFile;
 exports.moveFileZip = moveFileZip;
+exports.zipFile = zipFile;
+exports.copyFile = copyFile;
 exports.truncFile = truncFile;
 exports.unlinkFile = unlinkFile;
 exports.accessFile = accessFile;
+exports.utimesProm = utimesProm;
+exports.touchFile = touchFile;
+exports.touchFileSync = touchFileSync;
 exports.getVersion = getVersion;
 

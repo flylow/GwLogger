@@ -431,7 +431,7 @@ bufferOk will be true if the logging buffer is < 16K, the same as with Node stre
 
 As mentioned, this info about buffers\' states and events is rarely needed, but it\'s here.
 <a name="msgHandling"></a>
-### GwLogger 1.5.0 Error and Message Codes 
+### GwLogger 1.5.x Error and Message Codes 
 A message text is created and sent for each event. That message would have other details included. Most errors and warnings have an associated stackTrace object. Buffer messages do not have stackTraces, but in their place have an object with detailed information about the buffer and internal queues.
 
 Except for thrown error #221 all the messages, so far, are related to logging to file.

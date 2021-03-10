@@ -21,7 +21,7 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
-const version = "1.5.2";
+const version = "1.5.3";
 
 /**
  * @class
@@ -117,6 +117,18 @@ class Profiles {
 		return (p) ? path.resolve(p) : null;
 	}
 
+	checkDir(dirPath) {
+		if (dirPath) {
+			dirPath = dirPath.trim();
+			dirPath = path.resolve(dirPath);
+			if (!existsSync(dirPath) ) {
+				return null; // bad dir
+			} else {
+				return dirPath;
+			}
+		}
+	}
+		
 	/**
 	 * @desc Checks for a string type with length > 0
 	 * @param {string} str - a string candidate
@@ -456,7 +468,7 @@ class Profiles {
 	 * from built-in defaults.
 	 * @param {object} profileCandidate - An object with all attribute/value 
 	 * pairs to validate and store.
-	 * @private 
+	 * @private
 	*/
 	createActiveProfile(profileCandidate) { 
 		let nConfigError = 0;

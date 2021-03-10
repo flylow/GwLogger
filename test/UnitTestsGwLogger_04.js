@@ -15,7 +15,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.5.2"; // set to target version of GwLogger
+const versionRef = "1.5.3"; // set to target version of GwLogger
 const tlog = new GwLogger("off", true, true
 	, "./logfiles/Unit Test Results.log");
 
@@ -311,10 +311,13 @@ const test_recovery = function(n, iters, isFileDelete) {
 			}
 			else if (test_recovery_pass) {	
 				if (!existsSync(log2_logfile)) {
-				console.error(">>>>> TEST FAILED UT_04 <<<<<<");
+					tlog.info("test_recovery FAILED");
+					tlog.info ("stateRecord is: ", log2.getStateRecord());
+					console.error(">>>>> TEST FAILED UT_04 <<<<<<");
+				} else {
+					nPassed++;
+					tlog.info("test_recovery passed");
 				}
-				nPassed++;
-				tlog.info("test_recovery passed");
 				//console.log("stateRecord is: ", log2.getStateRecord());				
 				tlog.notice("\nTotal UnitTestsGwLogger_04.js Unit Tests: " 
 					+ nTests + ", Tests Passed: " + nPassed + "\n\n");

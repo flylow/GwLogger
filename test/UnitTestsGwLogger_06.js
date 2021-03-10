@@ -8,7 +8,27 @@ const unlinkProm = promisify(fs.unlink);
 const writeFileProm = promisify(fs.writeFile);
 
 const GwLogger = require("../GwLogger").GwLogger;
+let assert;
+assert = require("assert").strict;
+if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
+
+const versionRef = "1.5.3"; // set to target version of GwLogger
+const showStackTrace = true;
+// UT_01 tests all source versions, so this only needs to test any one source.
+const test_getVersion = function() {
+	nTests++;
+	try {
+		const ver = GwLogger.getVersion();
+		assert.equal(ver, versionRef);
+		nPassed++;
+		tlog.info("test_getVersion Passed!");
+	} catch(err) {
+		tlog.error("Fail TESTING: test_getVersion: ");
+		if (showStackTrace) tlog.error(err);
+	}
+};
+
 // Define Unit Test logger
 const tlog = new GwLogger("notice", true, "true"
 	, "./logfiles/Unit Test Results.log");
@@ -195,6 +215,7 @@ accMsg[0] = "Single value replacement";
 accMsg[1] = "Inject errors without replacement (accumulative)";
 
 const runTests = async function() {
+	test_getVersion();
 	await testProfileConfig();	
 };
 

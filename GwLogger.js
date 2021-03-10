@@ -10,7 +10,7 @@
  *  <a href="https://github.com/flylow/GwLogger">github repository.</a>
  *  Test info is in the test directory's DescriptionsOfTests.txt.
  *
- * @version 1.5.2
+ * @version 1.5.3
  * @license MIT.
  * @author G. Wilson, 11/2020
  */
@@ -27,7 +27,7 @@ const inspect = require("util").inspect;
 const existsSync = require("fs").existsSync;
 const EventEmitter = require("events");
 
-const version = "1.5.2";
+const version = "1.5.3";
 
 /**
  * @desc Creates the logger instance.
@@ -459,6 +459,7 @@ class GwLogger {
 	getStateRecord() {
 		return this.stateRecord;
 	}
+		
 	/**
 	* @desc Make sure the stream registry has a stream for us now.
 	* @private 

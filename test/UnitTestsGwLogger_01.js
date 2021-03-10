@@ -21,9 +21,10 @@ const { ProfileClass } = require("../Profiles");
 const fsprom = require("../fsprom.js");
 const timestamps = new (require("../timestamps.js")).Timestamps;
 const writePool = require("../WritePool.js");
+const FileRec = require("../FileRec.js").FileRec;
 // -- end of require section
 
-const versionRef = "1.5.2"; // set to target version of GwLogger	
+const versionRef = "1.5.3"; // set to target version of GwLogger	
 const tlog = new GwLogger("off", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setLogLevel("notice");
@@ -50,6 +51,8 @@ const test_getVersion = function() {
 	ver = fsprom.getVersion();
 	assert.equal(ver, versionRef);
 	ver = timestamps.getVersion();
+	assert.equal(ver, versionRef);
+	ver = FileRec.getVersion();
 	assert.equal(ver, versionRef);	
 	nPassed++;
 	tlog.info("test_getVersion Passed!");

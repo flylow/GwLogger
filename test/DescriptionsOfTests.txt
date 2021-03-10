@@ -94,13 +94,14 @@
 		
  6. UnitTestsGwLogger_06.js -- A unit test for checking methods that verify and report a valid 
 	configuration at start-up/instantiation of a new logger. Although busy, there is only one 
-	test case. This test was new in version 1.5.0.
+	test case besides the version test. This unit test was new in version 1.5.0.
+		test_getVersion();
 		testProfileConfig();
 	gwlogger\test>node UnitTestsGwLogger_06.js	
 		
  >> Functional tests log to console and/or file, and must be verified correct manually.
  
- Functional tests can be executed independently, or with FTRunner.bat. All functional tests require
+ Functional tests can be executed independently, or with FTRunner.bat if on Windows. All functional tests require
  manual inspection of output, both on the console and in the logfiles. Each test provides some additional
  detail.
 	

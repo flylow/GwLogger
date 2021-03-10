@@ -1,8 +1,7 @@
 "use strict";
 /** @overview
  * WritePool specializes in logging to logfiles, and 
- * manages pools of streams and logfiles. It rolls
- * and archives logfiles when/if specified.
+ * manages pools of streams and logfiles.
  *
  * It helps ensure that any of the user's instances of GwLogger that log to the 
  * same logfile will write to the same writeStream rather than creating 
@@ -13,7 +12,7 @@
 */
 
 // exceptions to ESLint no-init rule
-/*global module, console, setTimeout, clearTimeout, require */
+/*global module, setTimeout, require */
 
 const createWriteStream = require("fs").createWriteStream;
 const watch = require("fs").watch;
@@ -22,59 +21,16 @@ const path = require("path");
 const statSync = require("fs").statSync;
 const closeSync = require("fs").closeSync;
 const openSync = require("fs").openSync;
-
-const moveFileZip = require("./fsprom.js").moveFileZip;
-const moveFile = require("./fsprom.js").moveFile;
-const unlinkFile = require("./fsprom.js").unlinkFile;
+const { FileRec } = require("./FileRec.js");
 const accessFile = require("./fsprom.js").accessFile;
-const fs = require("fs");
+const touchFileSync = require("./fsprom.js").touchFileSync;
 
-const getTimeStamp = (new (require("./Timestamps.js").Timestamps)).getTimeStamp;
-
-const version = "1.5.2";
+const version = "1.5.3";
 
 let writeStreams = {}; // contains fs.writeStream(s) and properties
-let logFiles = {}; // contains LogFileRecs
+let logFiles = {}; // contains FileRecs
 let loggers = {}; // contains GwLogger instance registry (ID, ucFn, EventEmitter)
 let loggerCount = 0;
-
-/**
- * @class
- * @private
- * @desc Defines shared properties and state information for a logfile, which 
- * is not specific to a particular GwLogger instance.
- * Most buffering occurs inside the stream object, as usual for writestreams. 
- * But during a roll event, a localQueue, defined below, takes over. Buffering 
- * to the localQueue usually only happens for a short period while waiting for 
- * the outgoing file to receive remainder of any buffer still held by an 
- * ended writestream. After which, a new writestream is created and takes over.
-*/
-class LogFileRec {
-	constructor (isRollBySize = false, rollingLogPath = null
-		, maxNumRollingLogs = 0, maxLogSizeKb = 0
-		, isRollAsArchive = false, archiveLogPath = null) {
-		this.isRollBySize = isRollBySize; // Turns on rolling-by-size feature.
-		this.rollingLogPath = rollingLogPath;
-		this.maxNumRollingLogs = maxNumRollingLogs;
-		this.maxLogSizeKb = maxLogSizeKb;
-		this.isRollAsArchive = isRollAsArchive;
-		this.archiveLogPath = archiveLogPath;
-		this.oldBufferOk = true;
-		this.isRolling = false; // currently in the rolling process
-		
-		this.isQueuing = false; // directs logging for this file to the localQueue
-		this.localQueue = []; // The internal queue for this logfile
-		
-		this.loggerIds = []; // IDs of loggers using this logfile.
-		
-		this.startSizeKb = 0; // The size, in KB, of the logfile at startup
-		this.birthTimeMs = null; // Timestamp for logfile's creation date/time.
-
-		// If a log file is accidentally removed/renamed, a recovery process 
-		//tries to re-create
-		this.isInRecovery = false;
-	}
-}
 
 /** 
  * @desc The main WritePool class, a singleton, that does all the work managing 
@@ -86,7 +42,7 @@ class WritePool {
 	constructor () {
 		// After every nth write attempt will see if file needs rolled for size		
 		this.CHECK_FREQUENCY = 20;
-		this.checked = 0; // A counter adjusted after each write attempt.
+		this.checked = 0; // A counter adjusted after each write attempt.	
 	}
 
 	/** @private
@@ -390,7 +346,7 @@ class WritePool {
 		let record;
 		let ucFn = this.getUcFn(fn);
 		record = writeStreams[ucFn];
-		if (record && record.ws && !replace) {
+		if (record && record.ws && !replace) {			
 			return ws;
 		}
 		if (replace && record && record.watcher) {
@@ -403,153 +359,27 @@ class WritePool {
 		writeStreams[ucFn].ready = false;
 		// Make sure the file exists already, or the stream's lazy file create process
 		// may not beat other dependencies (esp. watcher)		
-		this.touch(fn);
+		touchFileSync(fn);		
 		ws = this.createCustomWriter(fn); // create a new stream
 		writeStreams[ucFn].ws = ws;
 		return ws;		
 	}
 	
 	/**
-	 * @desc Check if logfile size estimate is larger than target max set by user.
-	 * @param {object} ws - fs.writeStream.
-	 * @param {string} ucFn - key for a target logfile.
-	 * @returns {boolean} true if logfile needs rolled, else false.
+	 * @desc Check if any logfile needs rolled. 
 	 * @private
-	*/
-	getNeedToRollSize(ws, ucFn) {
-		let currentSize = 0;
-		if (logFiles[ucFn] && logFiles[ucFn].isRolling) {
-			return false; // already rolling...
-		}
-		// ws may be undefined at startup, so ws buffer regarded as empty.
-		if (ucFn && !ws) { 
-			if (logFiles[ucFn].startSizeKb  > logFiles[ucFn].maxLogSizeKb) {
-				return true;
-			}	
-			else return false; 
-		}
-		if (logFiles[ucFn].truncate) { // Must use only current file size
-			currentSize = this.getCurrentFileSizeKb(ucFn);
-		} else {
-			currentSize = logFiles[ucFn].startSizeKb + ws.bytesWritten/1024
-				+ Math.trunc(ws.writableLength/1024);
-		}
-		if (currentSize > logFiles[ucFn].maxLogSizeKb) {
-			return true;
-		} else {
-			return false;
-		}
-	}	
-	
-	/**
-	 * @desc Check if specific logfile needs rolled, then start the roll.
-	 * @param {string} ucFn - key for a target logfile.
-	 * @private
-	*/	
-	checkRollingFile(ucFn) {
-		let ws;
-		if (logFiles[ucFn]
-				&& logFiles[ucFn].isRollBySize 
-				&& !logFiles[ucFn].isRolling 
-				&& !logFiles[ucFn].isInRecovery 
-				&& logFiles[ucFn].maxLogSizeKb > 0 
-				&& (logFiles[ucFn].maxNumRollingLogs > 0
-					|| logFiles[ucFn].isRollAsArchive) ) {
-			ws = (writeStreams[ucFn]) 
+	*/		
+	checkRollingFiles() { 
+	let ws;
+		for (let ucFn in logFiles) {
+			ws = (writeStreams[ucFn] && writeStreams[ucFn].ws) 
 				? writeStreams[ucFn].ws 
 				: null;
 			if (ws && !writeStreams[ucFn].ready) {
-				return; // don't interrupt stream creation, rolling can wait.
-			}
-			if (this.getNeedToRollSize(ws, ucFn)) {
-				this.preRollFiles(ucFn);
-			}
-		} else if (logFiles[ucFn] && logFiles[ucFn].isQueuing) {
-			// Corner-case if rolling was turned off due to an previous error, still need 
-			//  to empty queue of any data and resume normal logging.
-			this.emptyLocalQueue(ucFn);
-		}		
-	}
-
-	/**
-	 * @desc Check if any logfile needs rolled, then start the roll. 
-	 * @private
-	*/	
-	checkRollingFiles() { 
-		for (let ucFn in logFiles) {
-			this.checkRollingFile(ucFn);
+				continue; // don't interrupt stream creation, rolling can wait.
+			}			
+			logFiles[ucFn].checkRollingFile(ws);
 		}
-	}
-	
-	/**
-	 * @desc The mostly-synchronous prelude to async rollFiles.
-	 * @param {string} ucFn - key for a target logfile.
-	 * @private
-	*/	
-	preRollFiles(ucFn) {
-		if (logFiles[ucFn].isRolling) {
-			return;
-		}
-		logFiles[ucFn].isRolling = true;
-		logFiles[ucFn].isQueuing = true;
-		const fn = logFiles[ucFn].fn;		
-		const ws = (writeStreams[ucFn] && writeStreams[ucFn].ws) 
-			? writeStreams[ucFn].ws 
-			: null;	
-		// timer will keep app alive if rolling incomplete when app ends normally
-		const timer = setTimeout(() => {
-			console.error("Timer in GwLogger - preRollFiles expired after 1 hour.");
-		}, 360000);			
-		const p = new Promise( (resolve) => {
-			let needNewStream = this.rollFiles(ucFn, ws, fn);
-			resolve(needNewStream);
-			clearTimeout(timer);			
-		});
-		p.then((needNewStream) => {
-			if (needNewStream || ws === null) {
-				this.rollNewStream(fn);
-			} 
-		});
-		p.catch((err) => {
-			this.send(ucFn, "warn", 3010, msg.errUknown(fn), err);
-		});
-	}
-	
-	/**
-	 * @desc Determine timestamp and generate a file name for an archive.
-	 * The name should include a timestamp from the file metadata (last modified 
-	 * time).
-	 * @param {string} oldFname - The path+file we want to archive.
-	 * @param {string} path - The path to put compressed files (archives).
-	 * @param {object} fnPath - a Path object for current actual logfile.
-	 * @param {boolean} useFileTS - true to try and derive timestamp from file's 
-	 * last-modified TS, else will use current time (former for fresh logfile, 
-	 * latter for a rolled file, which could have been on drive a long time.
-	 * @returns {string} path+filename for archived file. 
-	 * @private
-*/
-	async createArchiveName(oldFname, path, fnPath, useFileTS) {
-		const timeStampFormat = {isShowMs: false, nYr: 4, sephhmmss: ""};
-		const currentTimeMs = Date.now();
-		let ms;
-		if (useFileTS) {
-			const stats = fs.statSync(oldFname);
-			ms = stats.mtimeMs; // last time file was modified
-			const oneYearMs = 31536000000;
-			// If a machine or network drive isn't setting times correctly
-			// on the file system, then use current time in file name.
-			if ((currentTimeMs - ms) > oneYearMs) ms = currentTimeMs;
-		}
-		let ts = getTimeStamp(timeStampFormat, ms);
-		if (!path) path = fnPath.dir; // use logfile path
-		let nuFname = path + "/" + fnPath.name + "_" 
-			+ ts + fnPath.ext + ".gz"; // use time from file record
-		if (existsSync(nuFname)) { // naming conflict, likely NAS drive problem
-			ts = getTimeStamp(timeStampFormat, currentTimeMs+1);
-			nuFname = path + "/" + fnPath.name + "_" 
-				+ ts + fnPath.ext + ".gz";	 // use current time + 1ms	
-		}		
-		return nuFname;
 	}
 	
 	/**
@@ -570,163 +400,6 @@ class WritePool {
 				throw {msgCode: msgCode, msgText: msgText, causedBy: err};
 			}
 		}		
-	}
-	
-	/**
-	 * @desc Perform logfile roll.
-	 * @param {string} ucFn - key for a target logfile.
-	 * @param {fs.writeStream} ws - The logfiles associated writeStream .
-	 * @param {string} fn - the logfile to roll. 
-	 * @returns {boolean} - true if a new writeStream should be generated.
-	 * @private
-	*/
-	async rollFiles(ucFn, ws, fn) {	
-		const fnPath = path.parse(fn);	
-		const maxNum = logFiles[ucFn].maxNumRollingLogs;
-		let nuFname = "";
-		let rollingLogPath = logFiles[ucFn].rollingLogPath;
-		if (!rollingLogPath) rollingLogPath = fnPath.dir; // logfile directory!
-		const isArchive = logFiles[ucFn].isRollAsArchive;
-		let archiveLogPath = logFiles[ucFn].archiveLogPath;
-		if (!archiveLogPath) archiveLogPath = rollingLogPath;		
-		let typeOfMove;
-		// Make sure logfile exists (it IS possible to delete a logfile)
-		if (!existsSync(fn)) {
-			if (ws) ws.end(); // stop the stream's buffer from attempting to write to deleted file				
-			return false;
-		}
-		if (maxNum > 0) {
-			nuFname = rollingLogPath + "/" + fnPath.name + "_" 
-				+ (""+1).padStart(3,0) + fnPath.ext; // to be most recently rolled				
-			await this.rollLogtrain(ucFn, fnPath, rollingLogPath
-						, isArchive, archiveLogPath);	
-		} else if (isArchive) {
-			nuFname = await this.createArchiveName(fnPath.name
-				, archiveLogPath, fnPath, false);
-		}			
-		// roll current logfile
-		try {
-			if (ws) ws.cork(); // stop the stream's buffer from attempting to write to file				
-			typeOfMove = await this.rollLogfile(fn, nuFname, ucFn
-				, ws, isArchive);
-		} catch(err) {
-			// An unanticipated error, likely in moveFile			
-			// Try to recover without bringing down the application,
-			// make sure there is a logfile at very least
-			if (!existsSync(fn)) {
-				if (ws) ws.end(); // kill the old stream				
-				return false;
-			}			
-			this.haltAllRolling(ucFn); // turn off rolling for logfile 						
-			if (ws) ws.end();
-			this.send(ucFn, "warn", 3242, msg.warNoRoll01(fn), err);
-			return false; 
-		}		
-		if (typeOfMove === "trunc") {
-			logFiles[ucFn].isRolling = false;
-		}
-		return false;
-	}
-
-	/**
-	 * @desc Rename or move all the previously rolled logfiles (001 to 002, 
-	 * 002 to 003, etc). The highest number rolled file will be deleted or 
-	 * archived.
-	 * @param {string} ucFn - key for a target logfile.
-	 * @param {object} fnPath - a Path object for current actual logfile.
-	 * @param {string} rollingLogPath - path where rolled logs are stored.
-	 * @param {boolean} isArchive - true if last rolled file will be archived.
-	 * @private
-	 */
-	async rollLogtrain(ucFn, fnPath, rollingLogPath, isArchive, archiveLogPath) {
-		let oldFname, nuFname;
-		const maxNum = logFiles[ucFn].maxNumRollingLogs;
-		for (let oldFnum = maxNum; oldFnum > 0; oldFnum--) {
-			let nuFnum = oldFnum + 1;
-			oldFname = rollingLogPath + "/" + fnPath.name 
-				+ "_" + (""+oldFnum).padStart(3,0) + fnPath.ext; 
-			if (oldFnum === maxNum 
-					&& await accessFile(oldFname) ) {
-				if (isArchive) {
-					let nuFname = await this.createArchiveName(oldFname
-						, archiveLogPath, fnPath, true);
-					try {
-						await moveFileZip(oldFname, nuFname, true);
-					} catch(err) {
-						this.haltAllRolling(ucFn);
-						this.send(ucFn, "warn", 3240, msg.warRollOld01(oldFname), err);
-					}
-				}
-				else {
-					await unlinkFile(oldFname); // delete the oldest one
-					}
-			} else {
-				if (oldFnum < maxNum
-					&& await accessFile(oldFname) ) {
-					nuFname = rollingLogPath + "/" + fnPath.name + "_" 
-						+ (""+nuFnum).padStart(3,0) + fnPath.ext; 
-					try {
-						await moveFile(oldFname, nuFname);
-					} catch(err) {
-						this.haltAllRolling(ucFn);
-						this.send(ucFn, "warn", 3241, msg.warRollOld01(oldFname), err);
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	 * @desc After renaming all the old rolled-files up one (out of the way),
-	 * then this method renames or moves the actual current logfile to 
-	 * position 001.
-	 * @param {string} fn - logfile to roll.
-	 * @param {string} nuFname - name for rolled version of logfile.
-	 * @param {string} ucFn - key for a target logfile.
-	 * @param {object} ws - the writeStream to manage during roll. 
-	 * @param {boolean} isArchive - true if last rolled file will be archived.
-	 * @private
-	 */	
-	async rollLogfile(fn, nuFname, ucFn, ws, isArchive) {
-		let typeOfMove;
-		typeOfMove = (isArchive && logFiles[ucFn].maxNumRollingLogs === 0)
-			? await moveFileZip(fn, nuFname, true)
-			: await moveFile(fn, nuFname, true);		
-		if (!typeOfMove || typeOfMove === "none") { 
-			throw("typeOfMoveIsNone"); // caught by caller (rollFiles) method
-		} else if (typeOfMove === "trunc") { // truncated logfile fn to 0 length
-			logFiles[ucFn].truncate = true;
-			logFiles[ucFn].startSizeKb = 0;
-			logFiles[ucFn].birthTimeMs = Date.now();					
-			if (ws) {
-				ws.uncork();
-				this.emptyLocalQueue(ucFn);
-			}	
-		} else { // typeOfMove === "renamed"
-			logFiles[ucFn].truncate = false;
-			if (writeStreams[ucFn] && writeStreams[ucFn].watcher) {
-				writeStreams[ucFn].watcher.close();
-			}
-			// An existing stream will continue writing in the nuFname 
-			// location (inode) until stream-buffer empty and stream ends/closes.
-			if (ws) ws.end(); // will uncork, end stream, and close file
-		}
-		return typeOfMove;		
-	}
-	
-	/**
-	 * @desc creates a file synchronously if it didn't already exist.
-	 * @param {string} fn - file to touch.
-	 * @returns {boolean} true if file already existed, false if not.
-	 * @private
-	*/ 
-	touch(fn) {
-		if (!existsSync(fn)) {
-			closeSync(openSync(fn, "w")); 
-			return false; // file did not previously exist
-		} else {
-			return true; // file did already exist
-		}
 	}
 	
 	// Recursive, since we (rarely) may need some extra time for the old stream to clean-up
@@ -774,7 +447,7 @@ class WritePool {
 	}
 	
 	/**
-	 * @desc Initializes a new logFileRec, or updates one.
+	 * @desc Initializes a new FileRec, or updates one.
 	 * @param {string} fn - logfile name. 
 	 * @param {string} ucFn - key for this logfile.
 	 * @private
@@ -784,13 +457,51 @@ class WritePool {
 			// get current file information
 			const fileStat = statSync(fn);
 			const startSizeBytes = fileStat.size;
-			const birthTimeMs = fileStat.birthtimeMs;
+			const birthTimeMs = fileStat.birthtimeMs;		
 			if (!logFiles[ucFn]) {
-				logFiles[ucFn] = new LogFileRec();
+				logFiles[ucFn] = new FileRec(fn);
+				logFiles[ucFn].on("GwLoggerSystemMsgx42022"
+						, (gwMsgCode, fn, ws, err) => {
+					let ucFn = this.getUcFn(fn);
+					if (gwMsgCode === 4010) {
+						this.rollNewStream(fn);
+					} else if (gwMsgCode === 4021) {
+						this.haltAllRolling(ucFn); // really only for this logfile
+						this.send(ucFn, "warn", 3240, msg.warNoRoll01(fn), err);
+					} else if (gwMsgCode === 4022) {
+						this.haltAllRolling(ucFn); // for this logfile
+						this.send(ucFn, "warn", 3241, msg.warNoRoll01(fn), err);
+					} else if (gwMsgCode === 4020) {
+						this.haltAllRolling(ucFn); // for this logfile
+						if (ws) ws.end();
+						this.send(ucFn, "warn", 3242, msg.warNoRoll01(fn), err);
+					} else if (gwMsgCode === 4025) {
+						logFiles[ucFn].truncate = true;
+						logFiles[ucFn].startSizeKb = 0;
+						logFiles[ucFn].birthTimeMs = Date.now();						
+						if (ws) {
+							ws.uncork();
+							this.emptyLocalQueue(ucFn);
+						}	
+						logFiles[ucFn].isRolling = false;
+					} else if (gwMsgCode === 4026) {
+						logFiles[ucFn].truncate = false;
+						if (writeStreams[ucFn] && writeStreams[ucFn].watcher) {
+							writeStreams[ucFn].watcher.close();
+						}							
+						// An existing stream may continue writing in the moved fn 
+						// location (inode) until stream-buffer empty and stream ends/closes.
+						if (ws) ws.end(); // will uncork, end stream, and close file				
+					} else if (gwMsgCode === 4030) {
+						this.emptyLocalQueue(ucFn);
+					} else {
+						this.send(ucFn, "warn", 3010, msg.errUknown(fn), err);
+					}
+				});					
 			}
-			logFiles[ucFn].fn = fn;
 			logFiles[ucFn].startSizeKb = startSizeBytes / 1024;
 			logFiles[ucFn].birthTimeMs = birthTimeMs;
+					
 		} catch(err) {
 			this.send(ucFn, "error", 3009, msg.errLfInit01(fn), err);
 		}		
@@ -950,6 +661,7 @@ class WritePool {
 	 * @private
 	*/
 	verifyCreateWriteStream(fn, replace=false, activeProfile) {
+		//this.defEvent();		
 		let ucFn = this.getUcFn(fn);
 		let fnExisted;
 		let loggerId = activeProfile.loggerId;
@@ -960,10 +672,10 @@ class WritePool {
 			return this.getRegisteredStream(fn, replace);
 		}
 		if (!writeStreams || !writeStreams[ucFn]) {
-			fnExisted = this.touch(fn); // make sure the file exists
-			this.logFileInit(fn, ucFn); // startup, setup registry for logfile
+			fnExisted = touchFileSync(fn); // make sure the file exists
+			this.logFileInit(fn, ucFn); // startup, setup registry for logfile			
 			// add the logger's eventEmitter to the logfile's info
-			if (!logFiles[ucFn].loggerIds.indexOf(loggerId) > -1) {
+			if (logFiles[ucFn].loggerIds.indexOf(loggerId) === -1) {
 				logFiles[ucFn].loggerIds.push(loggerId);
 			}
 			this.setIsRollAsArchive(ucFn, activeProfile.isRollAsArchive);
@@ -973,21 +685,20 @@ class WritePool {
 			this.setMaxNumRollingLogs(ucFn, activeProfile.maxNumRollingLogs);
 			this.setRollingLogPath(ucFn, activeProfile.rollingLogPath);			
 			this.setIsRollBySize(ucFn, activeProfile.isRollBySize);
-		}
+		}	
 		if (fnExisted && activeProfile.isRollAtStartup
 				&& activeProfile.rollingLogPath 
 				&& (activeProfile.maxNumRollingLogs > 0
-					|| activeProfile.isRollAsArchive) ) {
-			this.preRollFiles(ucFn); // perform rolling of logfiles
-			return;
+					|| activeProfile.isRollAsArchive) ) {								
+			logFiles[ucFn].prerollFile(null); // roll logfile
 		}
-		// stream may not exist yet, but large file might, see if it needs rolled		
+		// stream may not exist yet, but large file might, see if it needs rolled	
 		else if (activeProfile.isRollBySize) {
 			// perform rolling of logfiles and create a new stream
-			this.checkRollingFile(ucFn);
+			logFiles[ucFn].checkRollingFile();
 			if (!logFiles[ucFn].isRolling) {
 				return this.getRegisteredStream(fn, replace);
-			} else return;
+			}
 		} 
 		else {
 			return this.getRegisteredStream(fn, replace);
@@ -1038,7 +749,7 @@ class WritePool {
 			const ws = writeStreams[ucFn].ws;
 			// bufferOk will hold the stream buffer's backpressure status 
 			// (will be false if buffer size is over high-water mark)
-			bufferOk = ws.write(txt, "utf8"); 
+			bufferOk = ws.write(txt, "utf8");
 			// see if time to check for rolling the log, and set that in motion
 			if (this.checked > this.CHECK_FREQUENCY) {
 				this.checked = 0;				
