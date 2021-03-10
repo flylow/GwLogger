@@ -1,6 +1,6 @@
 {
   "name": "@flylow/gwlogger",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "GwLogger is a Logger for NodeJS that is quick to setup and learn. It logs to console (stdout) and/or logfile, and supports rolling files and compressed archives. It's small and has no external dependencies.",
   "main": "GwLogger.js",
   "scripts": {},
