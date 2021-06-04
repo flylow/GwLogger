@@ -19,4 +19,4 @@ Change Log for @flylow/GwLogger
 | 1.5.1 | 2021:01:01 | Bug fixes for isColor management and event msgs in GwLogger.js, haltAllRolling fix in WritePool.js. Bugs #6 and #7. |
 | 1.5.2 | 2021:01:29 | Small code improvements, and JSDoc additions. |
 | 1.5.3 | 2021:03:10 | Fix for issue #8,[Timestamp on archive should follow original logfile](https://github.com/flylow/GwLogger/issues/8#issue-823236730). Also, refactored rollfiles functionality into its own class file.
-
+| 1.5.4	| 2021:06:04 | Fix to package.json to add missing file spec. |
