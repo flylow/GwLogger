@@ -24,10 +24,19 @@ const accessProm = promisify(fs.access);
 const openProm = promisify(fs.open);
 const closeProm = promisify(fs.close);
 const utimesProm = promisify(fs.utimes);
+const readdirProm = promisify(fs.readdir);
+const readProm = promisify(fs.read);
+const writeProm = promisify(fs.write);
+const mkdirProm = promisify(fs.mkdir);
+const copyFileProm = promisify(fs.copyFile);
+const pathpath = require("path");
 const closeSync = require("fs").closeSync;
 const openSync = require("fs").openSync;
 const existsSync = require("fs").existsSync;
-const version = "1.5.3";
+const crypto = require("crypto");
+const pbkdf2Prom = promisify(crypto.pbkdf2);
+const { Transform } = require('stream');
+const version = "1.5.4";
 
 /** 
  * @returns {string} Current version 
@@ -35,7 +44,7 @@ const version = "1.5.3";
 */
 const getVersion = () => {
 	return version;
-};
+};	
 	
 /**
  * @desc Determines if a file exists and (by default here) is currently available for writing. 
@@ -108,18 +117,141 @@ const renameFile = async function(path, newPath) {
 		await renameProm(path, newPath);
 };
 
+let tempHeaderDec;
+const decrypt = async function(file, password, key, iv) {
+console.log("In decrypt for: ", file);
+	// First, get the initialization vector from the file.
+	//const readInitVect = fs.createReadStream(file, { end: 15 });
+	let initVect;
+/*	
+  	await new Promise(resolve =>
+		readInitVect.on('data', (chunk) => {
+			initVect = chunk;
+			console.log("In decrypt, len of header is: ", initVect.length, ", equal?: ", (tempHeaderDec.equals(initVect)), tempHeaderDec, initVect);
+			console.log("still in decrypt, Buffer.isBuffer(initVect) : ", Buffer.isBuffer(initVect), ", Buffer.isBuffer(tempHeaderDec): ", Buffer.isBuffer(tempHeaderDec));
+			resolve(true);
+		})
+	);
+*/
+  // Once we’ve got the initialization vector, we can decrypt the file.
+	await new Promise(async (resolve) => {
+		console.log("In Decrypt promise");
+		//readInitVect.on('close', async () => {
+			let cipherKey = key; //await pbkdf2Prom(password, "salt", 5000, 32, "sha512"); // TODO, need real salt
+			//const cipherKey = getCipherKey(password);
+			//const readStream = fs.createReadStream(file, { start: 16 });
+			const readStream = fs.createReadStream(file);
+			const decipher = crypto.createDecipheriv('aes256', cipherKey, iv); //initVect);
+			//const unzip = zlib.createUnzip();
+			const writeStream = fs.createWriteStream(file + '.unenc');
+		try {
+			console.log("decrypting...");
+			await new Promise(resolve =>
+				readStream
+				  .pipe(decipher)
+				  //.pipe(unzip)
+				  .pipe(writeStream).on("finish", resolve));
+		} catch(err) {
+			console.log("At decrypt try/catch with error: ", err);
+			throw err;
+		}
+			})
+	//  );
+};
+
+class PrependHeader extends Transform {
+  constructor(header, options) {
+    super(options);
+    this.header = header;
+    this.done = false;
+  }
+
+  _transform(chunk, encoding, callback) {
+    if (!this.done) {
+		console.log("In PrependHeader, encoding is: ", encoding, ", len of header is: ", this.header.length);
+		this.push(Buffer.concat([this.header, chunk]));
+		this.done = true;
+    }
+    this.push(chunk);
+    callback();
+  }
+}
 /**
- * @desc Copies a file from one location to another.
+ * @desc Copies a file from one location to another using streams. Will overwrite
  * @param {string} path - file to be moved.
  * @param {string} newPath - new location for file.
  * @param {string} flags - passed to createWriteStream for new file, defaults to 'w'.
  * @private 
 */
-const copyFile = async function (path, newPath, flags) {
-	const readStream = createReadStream(path);
+const pipeFile = async function (path, newPath, flags, isOverwrite=false, encryptPw=null) {
+	if (!isOverwrite && await accessFile(newPath, fs.constants.F_OK)) {
+		return false;
+	}
+	console.log("In pipeFile for: ", path, newPath);
+	let readStream;
+	if (encryptPw) {
+		encryptPw = 'A0B0C0D0E0F001020304050607080900'; //TODO
+		//const iv = crypto.randomBytes(16);
+		const iv = Buffer.alloc(16);
+		crypto.randomFillSync(iv, 0, 16);
+		const header = " - @flylow/gwlogger - " + iv + "ENDGWLHEADER"; // 50 bytes
+		const addHeader = new PrependHeader(iv);
+		tempHeaderDec = iv;
+		console.log("In pipFile, iv is: ", iv.toString('hex'));
+		let key = await pbkdf2Prom(encryptPw, "salt", 5000, 32, "sha512"); // TODO, need real salt
+		console.log("In pipFile, key is: ", key.toString('hex'));
+		const encryptor = crypto.createCipheriv('aes-256-ctr', key, iv);
+		const decryptor = crypto.createDecipheriv('aes-256-ctr', key, iv); 
+		
+		//const readStream = createReadStream(path);	
+		const encStream = createWriteStream(newPath + ".enc");
+	const dencStream = createWriteStream(newPath + ".unenc");
+		await new Promise(resolve =>
+			createReadStream(path).pipe(encryptor)
+				//.pipe(addHeader)
+				.pipe(encStream)
+				.on("finish", resolve));
+		//await decrypt(newPath + ".enc", encryptPw, key, iv);
+			
+		await new Promise(resolve =>
+			createReadStream(newPath + ".enc").pipe(decryptor).pipe(dencStream).on("finish", resolve));	
+		return true;
+		
+	} else {
+		readStream = createReadStream(path);
 		const writeStream = createWriteStream(newPath, {flags});
 		await new Promise(resolve => 	
-		readStream.pipe(writeStream).on("finish", resolve));
+			readStream.pipe(writeStream).on("finish", resolve));
+		return true;
+	}
+};
+
+/**
+ * @desc Copies a file from one location to another using node.js 'copyFile'
+ * @param {string} path - file to be moved.
+ * @param {string} newPath - new location for file.
+ * @param {string} isOverwrite -can specify to overwrite target or not
+ * @param {string} encryptPw - encryption password, if null no encryption
+ * @private 
+*/
+const copyFile = async function (path, newPath, flags=null, isOverwrite=false, encryptPw=null) {
+	let mode = (isOverwrite)
+		? null
+		: fs.constants.COPYFILE_EXCL;
+	try {
+		console.log("encrypt is: ", (encryptPw));
+		if (encryptPw) {
+			return await pipeFile(path, newPath, flags, isOverwrite, encryptPw);
+		} else {
+			//return await pipeFile(path, newPath, flags, isOverwrite, encryptPw);
+			await copyFileProm(path, newPath, mode);
+			return true;
+		}
+	} catch(err) {
+		if (err.code === "EEXIST") return false;
+		console.log("Error in copyFile is: ", err); // TODO
+		return false;
+	}
 };
 
 /**
@@ -127,13 +259,42 @@ const copyFile = async function (path, newPath, flags) {
  * @param {string} path - file to be moved.
  * @param {string} newPath - new location for file.
  * @param {string} flags - passed to createWriteStream for new file, defaults to 'w'.
+ * @param {string} isOverwrite -can specify to overwrite target or not
+ * @param {string} encryptPw - encryption password, if null no encryption 
  * @private 
 */
-const zipFile = async function (path, newPath, flags) {
+const zipFile = async function (path, newPath, flags, isOverwrite=false, encryptPw=null) {
+	if (!isOverwrite && await accessFile(newPath, fs.constants.F_OK)) {
+		return false;
+	}
 	const readStream = createReadStream(path);
 	const writeStream = createWriteStream(newPath, {flags});
 	await new Promise(resolve => 	
 		readStream.pipe(zlib.createGzip()).pipe(writeStream).on("finish", resolve));
+	return true;
+};
+
+const copyDir = async function (src, dest, overwrite=false, isZip=false, encryptPw=null, depth=Number.MAX_SAFE_INTEGER) {
+    const entries = await readdirProm(src, {withFileTypes: true});
+	if (!await accessFile(dest)) {
+		await mkdirProm(dest);
+	}
+    for(let entry of entries) { 
+        const srcPath = pathpath.join(src, entry.name);
+        const destPath = pathpath.join(dest, entry.name);
+        if(entry.isDirectory()) {
+			if (depth > 0) {
+				await copyDir(srcPath, destPath, isZip, --depth);
+			}
+        } else {
+			console.log("srcPath is: ", srcPath);
+			if (isZip) {
+				await zipFile(srcPath, destPath+".gzip");
+			} else {
+				console.log(await copyFile(srcPath, destPath, null, overwrite, encryptPw));
+			}
+        }
+    }
 };
 
 /**
@@ -246,10 +407,13 @@ exports.moveFile = moveFile;
 exports.moveFileZip = moveFileZip;
 exports.zipFile = zipFile;
 exports.copyFile = copyFile;
+exports.copyDir = copyDir;
 exports.truncFile = truncFile;
 exports.unlinkFile = unlinkFile;
 exports.accessFile = accessFile;
 exports.utimesProm = utimesProm;
+exports.readdirProm = readdirProm;
+exports.mkdirProm = mkdirProm;
 exports.touchFile = touchFile;
 exports.touchFileSync = touchFileSync;
 exports.getVersion = getVersion;

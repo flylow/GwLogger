@@ -16,7 +16,7 @@ const statSync = require("fs").statSync;
 const fs = require("fs");
 
 const getTimeStamp = (new (require("./Timestamps.js").Timestamps)).getTimeStamp;
-const version = "1.5.3";
+const version = "1.5.4";
 
 /**
  * @class

@@ -25,7 +25,7 @@ const { FileRec } = require("./FileRec.js");
 const accessFile = require("./fsprom.js").accessFile;
 const touchFileSync = require("./fsprom.js").touchFileSync;
 
-const version = "1.5.3";
+const version = "1.5.4";
 
 let writeStreams = {}; // contains fs.writeStream(s) and properties
 let logFiles = {}; // contains FileRecs

@@ -10,7 +10,7 @@
  *  <a href="https://github.com/flylow/GwLogger">github repository.</a>
  *  Test info is in the test directory's DescriptionsOfTests.txt.
  *
- * @version 1.5.3
+ * @version 1.5.4
  * @license MIT.
  * @author G. Wilson, 11/2020
  */
@@ -20,14 +20,13 @@
 
 const writePool = require("./WritePool.js");
 const { ProfileClass } = require("./Profiles"); 
-// TODO REMOVEconst getTimeStamp = require("./timestamps.js").getTimeStamp;
 const timestamps = new (require("./Timestamps.js").Timestamps);
 const getTimeStamp = timestamps.getTimeStamp;
 const inspect = require("util").inspect; 
 const existsSync = require("fs").existsSync;
 const EventEmitter = require("events");
 
-const version = "1.5.3";
+const version = "1.5.4";
 
 /**
  * @desc Creates the logger instance.

@@ -24,7 +24,7 @@ const writePool = require("../WritePool.js");
 const FileRec = require("../FileRec.js").FileRec;
 // -- end of require section
 
-const versionRef = "1.5.3"; // set to target version of GwLogger	
+const versionRef = "1.5.4"; // set to target version of GwLogger	
 const tlog = new GwLogger("off", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setLogLevel("notice");
