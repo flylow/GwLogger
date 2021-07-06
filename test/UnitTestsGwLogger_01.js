@@ -24,7 +24,7 @@ const writePool = require("../WritePool.js");
 const FileRec = require("../FileRec.js").FileRec;
 // -- end of require section
 
-const versionRef = "1.5.4"; // set to target version of GwLogger	
+const versionRef = "1.5.5"; // set to target version of GwLogger	
 const tlog = new GwLogger("off", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setLogLevel("notice");
@@ -43,21 +43,21 @@ const test_getVersion = function() {
 	nTests++;
 	try {
 	let ver = GwLogger.getVersion();
-	assert.equal(ver, versionRef);
+	assert.equal(ver, versionRef, "Failed version check for GwLogger.js");
 	ver = ProfileClass.getVersion();
-	assert.equal(ver, versionRef);
+	assert.equal(ver, versionRef, "Failed version check for Profile.js");
 	ver = writePool.getVersion();
-	assert.equal(ver, versionRef);
+	assert.equal(ver, versionRef, "Failed version check for WritePool.js");
 	ver = fsprom.getVersion();
-	assert.equal(ver, versionRef);
+	assert.equal(ver, versionRef, "Failed version check for fsprom.js");
 	ver = timestamps.getVersion();
-	assert.equal(ver, versionRef);
+	assert.equal(ver, versionRef, "Failed version check for timestamps.js");
 	ver = FileRec.getVersion();
-	assert.equal(ver, versionRef);	
+	assert.equal(ver, versionRef, "Failed version check for FileRec.js");	
 	nPassed++;
 	tlog.info("test_getVersion Passed!");
 	} catch(err) {
-		tlog.error("Fail TESTING: test_getVersion: ");
+		tlog.error("Fail TESTING: At least one source file version number does not match in test_getVersion: ");
 		if (showStackTrace) tlog.error(err);
 	}
 };

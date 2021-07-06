@@ -1,20 +1,20 @@
 
- -- Test descriptions for GwLogger Version 1.5.x --
+ -- Test descriptions for GwLogger Version 1.5.5 --
  
  Unit and Functional tests are not included with the npm package, since they
- are never required by normal user-developers, but for use in GwLogger development
- or testing can be retrieved as the test directory within the github repository. 
- The entire directory should be installed under the gwlogger directory after 
- npm installation.
+ are never required by normal user-developers. But for use in GwLogger development
+ or testing they can be retrieved as the test directory within the github repository. 
+ The entire directory and all subdirectories should be installed in the gwlogger directory after 
+ npm installation. The first test case will verify that the code version is in synch with test cases.
 
  The Node.js "assert" package is used, and so no dependencies are necessary to test. 
- Zero dependencies was a goal of gwlogger, but has led to some platform-specific tests. 
+ Zero dependencies was a goal of gwlogger, but has led to one platform-specific setup. 
 
- For Windows, so there are simple bat files that run the tests with help from envSet.bat 
+ For Windows, there are simple bat files that run the tests with help from envSet.bat 
  and envUnset.bat. However, it is not that hard to run each individual test separately, 
  which may be better if any problems are suspected/detected.
  
- Testing on Ubuntu requires running each test separately. For UnitTestsGwLogger_03.js,
+ Testing on Ubuntu requires running each test file separately. For UnitTestsGwLogger_03.js,
  you'll need to first run setEnv.sh to set the environment variables. Use a fresh 
  terminal window to run other tests afterwards. 
  
@@ -23,6 +23,7 @@
    1. gwloggr/test/logfiles
    2. gwlogger/test/rolledfiles
    3. gwlogger/test/rolledfiles/rolledfiles2
+   4. gwlogger/test/testDefaults
 
  Unit tests 1,2,4, 5 and 6 can be executed independently, however UnitTestsGwLogger_03 requires
  prep work to set up the environment variables (see files envSet.bat and 
@@ -50,7 +51,7 @@
 		test_setIsColor();
 		test_setIsFile();
 		test_getFn();
-	gwlogger\test>node UnitTestsGwLogger_01.js	
+	gwlogger/test>node UnitTestsGwLogger_01.js	
 		
  
  2. UnitTestsGwLogger_02.js, covers these test cases:
@@ -64,14 +65,14 @@
 		test_customFileNameErrors(); 
 		test_customStreamPools();
 		test_bufferOk();
-	gwlogger\test>node UnitTestsGwLogger_02.js	
+	gwlogger/test>node UnitTestsGwLogger_02.js	
 		
  3. UnitTestsGwLogger_03.js,  test for environment variables use in profiles.
 		Requires some preparation: run 'envSet.bat' before the test file, and 'envUnset.bat' afterwards.
 		test_getEnvProfile(); // compares profile built with envSet.bat with canned test model.
 		gwlogger\test>envSet   or for Linux, gwlogger/test$ source ./envSet.sh
 		gwlogger\test>node UnitTestsGwLogger_03.js	
-	gwlogger\test>envUnset     sorry, only Windows so far.
+	gwlogger/test>envUnset     sorry, only Windows so far.
 		
  4. UnitTestsGwLogger_04.js, test rolling logfiles at startup and by size.
 		test_getVersion();
@@ -84,12 +85,12 @@
 		test_RollingLogsViaProfile();
 		primeBlitz();
 		test_recovery(0, false);
- 	gwlogger\test>node UnitTestsGwLogger_04.js	
+ 	gwlogger/test>node UnitTestsGwLogger_04.js	
 
  5.	UnitTestsGwLogger_05.mjs  -- A unit test to ensure export compatibility for ES6 import syntax, 
 	Ensures that the export statements of GwLogger are compatible with import. Success is a good version test.
 		test_getVersion(); // if this works okay, then GwLogger worked okay with ES6 modules
-	gwlogger\test>node UnitTestsGwLogger_05.mjs	
+	gwlogger/test>node UnitTestsGwLogger_05.mjs	
 		or node --experimental-modules UnitTestsGwLogger_05.mjs
 		
  6. UnitTestsGwLogger_06.js -- A unit test for checking methods that verify and report a valid 
@@ -97,7 +98,15 @@
 	test case besides the version test. This unit test was new in version 1.5.0.
 		test_getVersion();
 		testProfileConfig();
-	gwlogger\test>node UnitTestsGwLogger_06.js	
+	gwlogger/test>node UnitTestsGwLogger_06.js	
+	
+ 7. UnitTestsGwLogger_07.js -- A unit test for checking that default settings are properly set at 
+	startup, and that the default logfile will be created. This unit test was new in version 1.5.5.
+		test_getVersion();
+		test_defaults_1();
+		test_defaults_2();
+	gwlogger/test/testDefaults>node UnitTestsGwLogger_07.js		
+	
 		
  >> Functional tests log to console and/or file, and must be verified correct manually.
  
@@ -105,23 +114,23 @@
  manual inspection of output, both on the console and in the logfiles. Each test provides some additional
  detail.
 	
- 6. FuncTestCon_01.js, covers console-only on/off logging manipulation:		
+ 8. FuncTestCon_01.js, covers console-only on/off logging manipulation:		
 		1. Logs all levels to console
 		2. Logs No levels to console with LL=OFF
 		3. Logs NO levels to console with LL=ALL, isConsole=false
 		4. Logs all levels to console with isConsole=true (LL=ALL)
 		5. Ensure that no logging from FuncTestCon_01 creates or adds to any logfile.
-	gwlogger\test>node FuncTestCon_01.js	
+	gwlogger/test>node FuncTestCon_01.js	
 
- 7. FuncTest_02.js, logs identically to console and file (including timestamps). Tests are:
+ 9. FuncTest_02.js, logs identically to console and file (including timestamps). Tests are:
 		1. Only fatal message will log.
 		2. Fatal and error messages log.
 		3. Add warn message.
 		4. Add notice message
 		5-9. Add info, dev, debug, trace, and all 
-	gwlogger\test>node FuncTest_02.js	
+	gwlogger/test>node FuncTest_02.js	
 	
- 8. FuncTest_03.js, covers timestamp customizations, setModuleName, and separation characters.
+ 10.FuncTest_03.js, covers timestamp customizations, setModuleName, and separation characters.
 	Logged lines in output are numbered for reference in problems.
 		1. Message only needs to appear
 		2. Version number of GwLogger, needs only to appear.
@@ -144,14 +153,14 @@
 		19-22. Console messages should all be monochrome via setIsColor(false)
 		23-26. Console messages should be color (default, and setIsColor(true))
 		27. ModuleName should be the name of the test file, "functest_03".
-	gwlogger\test>node FuncTest_03.js	
+	gwlogger/test>node FuncTest_03.js	
 		
- 9.	FuncTest_04.js, helps test formatted output, 
+ 11.FuncTest_04.js, helps test formatted output, 
 	such as log.info("the meaning of life is: ", {meaningOfLife: {love: true, health: 8, money: 5} } );		
-		gwlogger\test>node FuncTest_04.js	
+		gwlogger/test>node FuncTest_04.js	
 
 	
- 10.EnduroGwLogger.js, Not a unit or functional test, more of a stress test. 
+ 12.EnduroGwLogger.js, Not a unit or functional test, more of a stress test. 
 	Intended to run for long periods to look for memory leaks or problems 
 	logging to slower drives, or to LAN drives. Uses back-pressure indicator 
 	to keep logging near maximum rate for long periods with rolling logfiles. 
@@ -162,7 +171,7 @@
 	its logging drive(s). To run a shorter version, change the variable 
 	'nIterations' which is set with one of the last statements near the 
 	bottom of the file.
-		gwlogger\test>node EnduroGwLogger.js
+		gwlogger/test>node EnduroGwLogger.js
 	
 
 	

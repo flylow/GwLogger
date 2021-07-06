@@ -36,7 +36,7 @@ const existsSync = require("fs").existsSync;
 const crypto = require("crypto");
 const pbkdf2Prom = promisify(crypto.pbkdf2);
 const { Transform } = require('stream');
-const version = "1.5.4";
+const version = "1.5.5";
 
 /** 
  * @returns {string} Current version 

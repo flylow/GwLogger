@@ -25,7 +25,7 @@ const { FileRec } = require("./FileRec.js");
 const accessFile = require("./fsprom.js").accessFile;
 const touchFileSync = require("./fsprom.js").touchFileSync;
 
-const version = "1.5.4";
+const version = "1.5.5";
 
 let writeStreams = {}; // contains fs.writeStream(s) and properties
 let logFiles = {}; // contains FileRecs
@@ -418,7 +418,8 @@ class WritePool {
 	async rollNewStream(fn, retryNum=0) {
 		const ucFn = this.getUcFn(fn);
 		// will wait for new logfile to be created before creating stream
-		if (await accessFile(fn)) { //(existsSync(fn)) {
+		//if (await accessFile(fn)) { //(existsSync(fn)) {
+		if (existsSync(fn)) {
 			this.getRegisteredStream(fn, true); // replace ws in writeStreams obj
 			this.emptyLocalQueue(ucFn);
 			return;			
@@ -587,6 +588,7 @@ class WritePool {
 				else if (logFiles[ucFn].isRolling) {
 					this.rollNewStream(fn);				
 				}
+				else this.rollNewStream(fn);
 			});
 			ws.on("ready", () => {			
 			});	
@@ -660,19 +662,24 @@ class WritePool {
 	 * Program logic should never depend on getting a value back.
 	 * @private
 	*/
-	verifyCreateWriteStream(fn, replace=false, activeProfile) {
-		//this.defEvent();		
+	verifyCreateWriteStream(fn, replace=false, activeProfile) {	
 		let ucFn = this.getUcFn(fn);
 		let fnExisted;
 		let loggerId = activeProfile.loggerId;
 		if (!loggers[loggerId].ucFn) {
 				loggers[loggerId].ucFn = ucFn;
-		}			
+		}
 		if (writeStreams && writeStreams[ucFn] && writeStreams[ucFn].ws) {
+			if (!existsSync(fn)) {
+				writeStreams[ucFn].ws.destroy(); //loss of some logging statements
+				logFiles[ucFn].isQueuing = true;
+				this.rollNewStream(fn);
+				return null;
+			}			
 			return this.getRegisteredStream(fn, replace);
 		}
 		if (!writeStreams || !writeStreams[ucFn]) {
-			fnExisted = touchFileSync(fn); // make sure the file exists
+			fnExisted = touchFileSync(fn); // make sure the file exists				
 			this.logFileInit(fn, ucFn); // startup, setup registry for logfile			
 			// add the logger's eventEmitter to the logfile's info
 			if (logFiles[ucFn].loggerIds.indexOf(loggerId) === -1) {

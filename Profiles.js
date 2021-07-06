@@ -21,7 +21,7 @@ const readFileSync = require("fs").readFileSync;
 const existsSync = require("fs").existsSync;
 const path = require("path");
 const writePool = require("./WritePool.js");
-const version = "1.5.4";
+const version = "1.5.5";
 
 /**
  * @class
@@ -386,7 +386,7 @@ class Profiles {
 	 * @param {string} fn - file path/name for logfile. 
 	 * @private 
 	*/
-	verifyCreateWriteStream(fn) { 	
+	verifyCreateWriteStream(fn) { 
 		if (!fn || !(this.fnPath = this.checkPath(fn))) {
 			this.ee.emit("error", 2001, msg.errNoLog01(fn));	
 		}
@@ -491,6 +491,7 @@ class Profiles {
 				errorList.push("#"+nConfigError+". "+msg.errNoLL02(logLevelStr, this.getLogLevels().join()));
 			}
 		}
+
 		
 		let fn  = profileCandidate.fn;
 		if (this.passedParams.fn && this.passedParams.fn !== null) {
@@ -506,7 +507,7 @@ class Profiles {
 			errorList.push("#"+nConfigError+". "+msg.errNoLog01(fn));
 		}		
 		this.ucFn = writePool.getUcFn(fn);
-		
+
 		//if user passed it non-null, it needs to be right, or throw (don't default)
 		let isFile = profileCandidate.isFile;
 		result = isFile;
@@ -517,7 +518,7 @@ class Profiles {
 		if (typeof result !== "boolean") {
 			nConfigError++;
 			errorList.push("#"+nConfigError+". "+msg.errPTF01("isFile", isFile));
-		} else isFile = result;	
+		} else isFile = result;		
 
 		let isConsole = profileCandidate.isConsole;
 		result = isConsole;

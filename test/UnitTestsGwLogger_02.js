@@ -14,7 +14,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.5.4"; // version number of targeted GwLogger.
+const versionRef = "1.5.5"; // version number of targeted GwLogger.
 const tlog = new GwLogger("notice", true, "true"
 	, "./logfiles/Unit Test Results.log");
 tlog.setModuleName("UT_02");

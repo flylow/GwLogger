@@ -13,7 +13,7 @@ assert = require("assert").strict;
 if (!assert) assert = require("assert"); // for node < 10.0 without strict mode
 // -- end of require section
 
-const versionRef = "1.5.4"; // set to target version of GwLogger
+const versionRef = "1.5.5"; // set to target version of GwLogger
 const showStackTrace = true;
 // UT_01 tests all source versions, so this only needs to test any one source.
 const test_getVersion = function() {
